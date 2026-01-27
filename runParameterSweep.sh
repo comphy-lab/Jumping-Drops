@@ -28,8 +28,13 @@ Run parameter sweep with auto-incrementing CaseNo.
 Creates case folders in simulationCases/<CaseNo>/ for each parameter combination.
 Cases run sequentially (one at a time).
 
+Workflow:
+    - Runs initialization phase (STL → dumpInit) if dumpInit doesn't exist
+    - Runs main simulation with parameter variations
+
 Options:
     -n, --dry-run        Show parameter combinations without running
+    --skip-init          Skip initialization phase (assumes dumpInit exists)
     -v, --verbose        Verbose output
     -c, --compile-only   Compile only, don't run simulations
     -m, --mpi            Enable MPI parallel execution for all cases
@@ -74,6 +79,7 @@ EOF
 # Parse Command Line Options
 # ============================================================
 DRY_RUN=0
+SKIP_INIT=0
 VERBOSE=0
 COMPILE_ONLY=0
 MPI_ENABLED=0
@@ -83,6 +89,10 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         -n|--dry-run)
             DRY_RUN=1
+            shift
+            ;;
+        --skip-init)
+            SKIP_INIT=1
             shift
             ;;
         -v|--verbose)
@@ -131,7 +141,7 @@ if [ ! -f "$SWEEP_FILE" ]; then
 fi
 
 echo "========================================="
-echo "Drop Impact - Parameter Sweep"
+echo "Jumping Drops - Parameter Sweep"
 echo "========================================="
 echo "Sweep file: $SWEEP_FILE"
 [ $DRY_RUN -eq 1 ] && echo "Mode: Dry run (no execution)"
@@ -315,23 +325,53 @@ for case_file in "$TEMP_DIR"/case_*.params; do
     PARAM_FILES+=("$case_file")
 done
 
-# Build flags to pass to runSimulation.sh
-RUN_FLAGS=""
-if [ $COMPILE_ONLY -eq 1 ]; then
-    RUN_FLAGS="$RUN_FLAGS --compile-only"
-fi
-if [ $MPI_ENABLED -eq 1 ]; then
-    RUN_FLAGS="$RUN_FLAGS --mpi --cores $MPI_CORES"
-fi
-
 # Run simulations sequentially (one at a time)
 echo "Running $COMBINATION_COUNT simulations sequentially"
 if [ $MPI_ENABLED -eq 1 ]; then
     echo "Each case will use MPI with $MPI_CORES cores"
 fi
+if [ $SKIP_INIT -eq 1 ]; then
+    echo "Skipping initialization phase (--skip-init)"
+fi
 echo ""
 
 for param_file in "${PARAM_FILES[@]}"; do
+    # Parse parameter file to get CaseNo
+    parse_param_file "$param_file"
+    CASE_NO=$(get_param "CaseNo")
+
+    if [ -z "$CASE_NO" ]; then
+        echo "ERROR: CaseNo not found in $param_file" >&2
+        continue
+    fi
+
+    CASE_DIR="simulationCases/${CASE_NO}"
+
+    # Determine which phases to run
+    RUN_FLAGS=""
+
+    # Check if initialization is needed
+    if [ $SKIP_INIT -eq 1 ]; then
+        # Skip init, only run main
+        RUN_FLAGS="$RUN_FLAGS --main-only"
+    elif [ -f "$CASE_DIR/dumpInit" ]; then
+        # dumpInit exists, only run main
+        echo "Case $CASE_NO: dumpInit found, skipping initialization"
+        RUN_FLAGS="$RUN_FLAGS --main-only"
+    else
+        # Need to run both init and main
+        echo "Case $CASE_NO: Running full workflow (init + main)"
+    fi
+
+    # Add other flags
+    if [ $COMPILE_ONLY -eq 1 ]; then
+        RUN_FLAGS="$RUN_FLAGS --compile-only"
+    fi
+    if [ $MPI_ENABLED -eq 1 ]; then
+        RUN_FLAGS="$RUN_FLAGS --mpi --cores $MPI_CORES"
+    fi
+
+    # Run simulation
     ./runSimulation.sh $RUN_FLAGS "$param_file"
 done
 

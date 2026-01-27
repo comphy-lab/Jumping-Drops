@@ -1,5 +1,5 @@
 #!/bin/bash
-# runSimulation.sh - Run single drop impact simulation from root directory
+# runSimulation.sh - Run single jumping drops simulation from root directory
 # Creates case folder in simulationCases/<CaseNo>/ and runs simulation there
 
 set -e  # Exit on error
@@ -32,13 +32,15 @@ usage() {
     cat <<EOF
 Usage: $0 [OPTIONS] [params_file]
 
-Run single drop impact simulation from root directory.
+Run single jumping drops simulation from root directory.
 Creates case folder in simulationCases/<CaseNo>/ based on parameter file.
 
 Options:
     -c, --compile-only    Compile but don't run simulation
+    --init-only           Run initialization phase only (creates dumpInit)
+    --main-only           Run main simulation only (requires dumpInit)
     -d, --debug           Compile with debug flags (-g -DTRASH=1)
-    -m, --mpi             Enable MPI parallel execution
+    -m, --mpi             Enable MPI parallel execution (main phase only)
     --cores N             Number of MPI cores (default: 4, requires --mpi)
     -v, --verbose         Verbose output
     -h, --help           Show this help message
@@ -52,8 +54,14 @@ Environment variables:
     QCC_FLAGS     Additional qcc compiler flags
 
 Examples:
-    # Run with default parameters (serial)
+    # Run full workflow (init + main, serial)
     $0
+
+    # Run initialization only (creates dumpInit from STL)
+    $0 --init-only
+
+    # Run main simulation only (requires dumpInit)
+    $0 --main-only --mpi --cores 8
 
     # Run with MPI parallel execution (4 cores)
     $0 --mpi
@@ -75,6 +83,8 @@ EOF
 # Parse Command Line Options
 # ============================================================
 COMPILE_ONLY=0
+INIT_ONLY=0
+MAIN_ONLY=0
 DEBUG_FLAGS=""
 VERBOSE=0
 MPI_ENABLED=0
@@ -84,6 +94,14 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         -c|--compile-only)
             COMPILE_ONLY=1
+            shift
+            ;;
+        --init-only)
+            INIT_ONLY=1
+            shift
+            ;;
+        --main-only)
+            MAIN_ONLY=1
             shift
             ;;
         -d|--debug)
@@ -172,12 +190,27 @@ fi
 
 CASE_DIR="simulationCases/${CASE_NO}"
 
+# Validate phase flags
+if [ $INIT_ONLY -eq 1 ] && [ $MAIN_ONLY -eq 1 ]; then
+    echo "ERROR: Cannot specify both --init-only and --main-only" >&2
+    exit 1
+fi
+
+# Determine phase mode
+PHASE_MODE="both"
+if [ $INIT_ONLY -eq 1 ]; then
+    PHASE_MODE="init"
+elif [ $MAIN_ONLY -eq 1 ]; then
+    PHASE_MODE="main"
+fi
+
 echo "========================================="
-echo "Drop Impact Simulation - Single Case"
+echo "Jumping Drops Simulation - Single Case"
 echo "========================================="
 echo "Case Number: $CASE_NO"
 echo "Case Directory: $CASE_DIR"
 echo "Parameter File: $PARAM_FILE"
+echo "Phase Mode: $PHASE_MODE"
 if [ $MPI_ENABLED -eq 1 ]; then
     echo "Execution Mode: MPI Parallel ($MPI_CORES cores)"
 else
@@ -205,70 +238,96 @@ cd "$CASE_DIR"
 # ============================================================
 # Compilation
 # ============================================================
-SRC_FILE_ORIG="../dropImpact.c"
-SRC_FILE_LOCAL="dropImpact.c"
-EXECUTABLE="dropImpact"
-
 echo ""
 echo "========================================="
 echo "Compilation"
 echo "========================================="
 
-# Check if source file exists
-if [ ! -f "$SRC_FILE_ORIG" ]; then
-    echo "ERROR: Source file $SRC_FILE_ORIG not found" >&2
-    exit 1
-fi
+# Compile initialization phase (if needed)
+if [ "$PHASE_MODE" = "init" ] || [ "$PHASE_MODE" = "both" ]; then
+    SRC_INIT="../jumpingDrops_init.c"
+    EXEC_INIT="jumpingDrops_init"
 
-# Copy source file to case directory for compilation
-# This avoids qcc issues with relative paths and keeps a record
-cp "$SRC_FILE_ORIG" "$SRC_FILE_LOCAL"
-echo "Copied source file to case directory"
-
-# Compile
-echo "Compiling $SRC_FILE_LOCAL..."
-
-if [ $MPI_ENABLED -eq 1 ]; then
-    # MPI parallel compilation
-    if [ "$OS_TYPE" = "Darwin" ]; then
-        # macOS
-        [ $VERBOSE -eq 1 ] && echo "Compiler: CC99='mpicc -std=c99' qcc"
-        [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
-        [ $VERBOSE -eq 1 ] && echo "Flags: -Wall -O2 -D_MPI=1 -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
-
-        CC99='mpicc -std=c99' qcc -I../../src-local \
-            -Wall -O2 -D_MPI=1 -disable-dimensions \
-            $DEBUG_FLAGS $QCC_FLAGS \
-            "$SRC_FILE_LOCAL" -o "$EXECUTABLE" -lm
-    else
-        # Linux
-        [ $VERBOSE -eq 1 ] && echo "Compiler: CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc"
-        [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
-        [ $VERBOSE -eq 1 ] && echo "Flags: -Wall -O2 -D_MPI=1 -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
-
-        CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc -I../../src-local \
-            -Wall -O2 -D_MPI=1 -disable-dimensions \
-            $DEBUG_FLAGS $QCC_FLAGS \
-            "$SRC_FILE_LOCAL" -o "$EXECUTABLE" -lm
+    if [ ! -f "$SRC_INIT" ]; then
+        echo "ERROR: Source file $SRC_INIT not found" >&2
+        exit 1
     fi
-else
-    # Serial compilation
-    [ $VERBOSE -eq 1 ] && echo "Compiler: qcc"
+
+    echo "Compiling initialization phase ($SRC_INIT)..."
+    [ $VERBOSE -eq 1 ] && echo "Compiler: qcc (serial only, STL geometry)"
     [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
     [ $VERBOSE -eq 1 ] && echo "Flags: -O2 -Wall -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
 
+    # Init phase is always serial (distance.h not MPI-compatible)
     qcc -I../../src-local \
         -O2 -Wall -disable-dimensions \
         $DEBUG_FLAGS $QCC_FLAGS \
-        "$SRC_FILE_LOCAL" -o "$EXECUTABLE" -lm
+        "$SRC_INIT" -o "$EXEC_INIT" -lm
+
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Compilation of initialization phase failed" >&2
+        exit 1
+    fi
+
+    echo "Compilation successful: $EXEC_INIT"
+    echo ""
 fi
 
-if [ $? -ne 0 ]; then
-    echo "ERROR: Compilation failed" >&2
-    exit 1
-fi
+# Compile main phase (if needed)
+if [ "$PHASE_MODE" = "main" ] || [ "$PHASE_MODE" = "both" ]; then
+    SRC_MAIN="../jumpingDrops_main.c"
+    EXEC_MAIN="jumpingDrops_main"
 
-echo "Compilation successful: $EXECUTABLE"
+    if [ ! -f "$SRC_MAIN" ]; then
+        echo "ERROR: Source file $SRC_MAIN not found" >&2
+        exit 1
+    fi
+
+    echo "Compiling main simulation phase ($SRC_MAIN)..."
+
+    if [ $MPI_ENABLED -eq 1 ]; then
+        # MPI parallel compilation
+        if [ "$OS_TYPE" = "Darwin" ]; then
+            # macOS
+            [ $VERBOSE -eq 1 ] && echo "Compiler: CC99='mpicc -std=c99' qcc"
+            [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
+            [ $VERBOSE -eq 1 ] && echo "Flags: -Wall -O2 -D_MPI=1 -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
+
+            CC99='mpicc -std=c99' qcc -I../../src-local \
+                -Wall -O2 -D_MPI=1 -disable-dimensions \
+                $DEBUG_FLAGS $QCC_FLAGS \
+                "$SRC_MAIN" -o "$EXEC_MAIN" -lm
+        else
+            # Linux
+            [ $VERBOSE -eq 1 ] && echo "Compiler: CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc"
+            [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
+            [ $VERBOSE -eq 1 ] && echo "Flags: -Wall -O2 -D_MPI=1 -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
+
+            CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc -I../../src-local \
+                -Wall -O2 -D_MPI=1 -disable-dimensions \
+                $DEBUG_FLAGS $QCC_FLAGS \
+                "$SRC_MAIN" -o "$EXEC_MAIN" -lm
+        fi
+    else
+        # Serial compilation
+        [ $VERBOSE -eq 1 ] && echo "Compiler: qcc (serial)"
+        [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
+        [ $VERBOSE -eq 1 ] && echo "Flags: -O2 -Wall -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
+
+        qcc -I../../src-local \
+            -O2 -Wall -disable-dimensions \
+            $DEBUG_FLAGS $QCC_FLAGS \
+            "$SRC_MAIN" -o "$EXEC_MAIN" -lm
+    fi
+
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Compilation of main phase failed" >&2
+        exit 1
+    fi
+
+    echo "Compilation successful: $EXEC_MAIN"
+    echo ""
+fi
 
 # Exit if compile-only mode
 if [ $COMPILE_ONLY -eq 1 ]; then
@@ -286,38 +345,128 @@ echo "========================================="
 echo "Execution"
 echo "========================================="
 
-# Use the copied parameter file
-echo "Running simulation with case.params"
+# Parse parameters from case.params
+source ../src-local/parse_params.sh
+parse_param_file "case.params"
 
-if [ -f "restart" ]; then
-    echo "Restart file found - simulation will resume from checkpoint"
+Oh=$(get_param "Oh")
+Bo=$(get_param "Bo")
+MAXlevel=$(get_param "MAXlevel")
+tmax=$(get_param "tmax")
+
+if [ -z "$Oh" ] || [ -z "$Bo" ] || [ -z "$MAXlevel" ]; then
+    echo "ERROR: Missing required parameters (Oh, Bo, MAXlevel) in case.params" >&2
+    exit 1
 fi
 
+echo "Parameters: Oh=$Oh, Bo=$Bo, MAXlevel=$MAXlevel"
+
+# Run initialization phase (if needed)
+if [ "$PHASE_MODE" = "init" ] || [ "$PHASE_MODE" = "both" ]; then
+    echo ""
+    echo "========================================="
+    echo "Phase 1: Initialization (STL → dumpInit)"
+    echo "========================================="
+
+    if [ -f "dumpInit" ]; then
+        echo "Warning: dumpInit already exists - will be overwritten"
+    fi
+
+    echo "Command: ./jumpingDrops_init $Oh $Bo $MAXlevel"
+    ./jumpingDrops_init $Oh $Bo $MAXlevel
+
+    INIT_EXIT_CODE=$?
+
+    if [ $INIT_EXIT_CODE -ne 0 ]; then
+        echo "ERROR: Initialization phase failed with exit code $INIT_EXIT_CODE" >&2
+        cd ../..
+        exit $INIT_EXIT_CODE
+    fi
+
+    if [ ! -f "dumpInit" ]; then
+        echo "ERROR: dumpInit not created by initialization phase" >&2
+        cd ../..
+        exit 1
+    fi
+
+    # Copy dumpInit to dump for main phase
+    cp dumpInit dump
+    echo "Initialization phase completed successfully"
+    echo ""
+fi
+
+# Run main simulation phase (if needed)
+if [ "$PHASE_MODE" = "main" ] || [ "$PHASE_MODE" = "both" ]; then
+    echo ""
+    echo "========================================="
+    echo "Phase 2: Main Simulation"
+    echo "========================================="
+
+    # Check for dump file
+    if [ ! -f "dump" ]; then
+        echo "ERROR: dump file not found - run initialization phase first" >&2
+        cd ../..
+        exit 1
+    fi
+
+    if [ -f "restart" ]; then
+        echo "Restart file found - simulation will resume from checkpoint"
+    fi
+
+    # Get tmax
+    if [ -z "$tmax" ]; then
+        echo "ERROR: tmax not found in case.params" >&2
+        exit 1
+    fi
+
+    echo "Running main simulation: tmax=$tmax"
+    echo "Starting simulation..."
+    echo "========================================="
+
+    # Run simulation
+    if [ $MPI_ENABLED -eq 1 ]; then
+        [ $VERBOSE -eq 1 ] && echo "Command: mpirun -np $MPI_CORES ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel"
+        mpirun -np $MPI_CORES ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel
+    else
+        [ $VERBOSE -eq 1 ] && echo "Command: ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel"
+        ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel
+    fi
+
+    EXIT_CODE=$?
+
+    echo "========================================="
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo "Main simulation completed successfully"
+    else
+        echo "Main simulation failed with exit code $EXIT_CODE"
+    fi
+    echo "========================================="
+fi
+
+# Final summary
 echo ""
-echo "Starting simulation..."
 echo "========================================="
-
-# Run simulation
-if [ $MPI_ENABLED -eq 1 ]; then
-    [ $VERBOSE -eq 1 ] && echo "Command: mpirun -np $MPI_CORES ./dropImpact case.params"
-    mpirun -np $MPI_CORES ./dropImpact case.params
-else
-    [ $VERBOSE -eq 1 ] && echo "Command: ./dropImpact case.params"
-    ./dropImpact case.params
-fi
-
-EXIT_CODE=$?
-
+echo "Summary"
 echo "========================================="
-if [ $EXIT_CODE -eq 0 ]; then
-    echo "Simulation completed successfully"
+if [ "$PHASE_MODE" = "both" ]; then
+    echo "Completed both initialization and main simulation"
     echo "Output location: $CASE_DIR"
-else
-    echo "Simulation failed with exit code $EXIT_CODE"
+elif [ "$PHASE_MODE" = "init" ]; then
+    echo "Initialization phase completed"
+    echo "dumpInit created in: $CASE_DIR"
+elif [ "$PHASE_MODE" = "main" ]; then
+    echo "Main simulation completed"
+    echo "Output location: $CASE_DIR"
 fi
 echo "========================================="
 
 # Return to root directory
 cd ../..
 
-exit $EXIT_CODE
+# Set final exit code
+FINAL_EXIT_CODE=0
+if [ "$PHASE_MODE" = "main" ] || [ "$PHASE_MODE" = "both" ]; then
+    FINAL_EXIT_CODE=${EXIT_CODE:-0}
+fi
+
+exit $FINAL_EXIT_CODE

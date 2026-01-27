@@ -12,18 +12,30 @@
 #SBATCH --chdir=/gpfs/work2/0/nctt0620/vatsal/2025-11-17-DropImpact/Drop-Impact
 
 # ============================================================
-# Drop Impact - HPC Parameter Sweep Runner
+# Jumping Drops - HPC Parameter Sweep Runner
 # ============================================================
 # This script runs parameter sweeps on Snellius HPC.
 # Each case runs sequentially but uses MPI parallelization.
 #
+# IMPORTANT: This script runs MAIN SIMULATION ONLY (not initialization)
+#
+# WORKFLOW:
+# 1. Local: Run initialization phase to create dumpInit
+#    ./runSimulation.sh --init-only case.params
+# 2. Local: Transfer dumpInit to HPC case directory
+#    scp simulationCases/<CaseNo>/dumpInit hpc:Drop-Impact/simulationCases/<CaseNo>/
+# 3. HPC: Run this script to execute main simulation with MPI
+#    sbatch runSweepSnellius.sbatch
+#
 # BEFORE RUNNING:
-# 1. Edit sweep.params to set parameter ranges and case numbers
-# 2. Adjust SBATCH parameters above (especially --ntasks, --time)
-# 3. Submit with: sbatch runSweepSnellius.sbatch
+# 1. Create dumpInit locally for each case (initialization phase)
+# 2. Transfer dumpInit files to HPC case directories
+# 3. Edit sweep.params to set parameter ranges and case numbers
+# 4. Adjust SBATCH parameters above (especially --ntasks, --time)
+# 5. Submit with: sbatch runSweepSnellius.sbatch
 #
 # SBATCH Parameters to Customize:
-#   --ntasks: Number of MPI tasks per case (currently 192)
+#   --ntasks: Number of MPI tasks per case (currently 48)
 #   --time: Wall time for entire sweep (currently 100 hours)
 #   --partition: Compute partition (currently genoa)
 #   --mail-user: Email for job notifications
@@ -42,7 +54,7 @@ SWEEP_FILE="${SCRIPT_DIR}/sweep.params"
 # Print Job Information
 # ============================================================
 echo "============================================="
-echo "Drop Impact - HPC Parameter Sweep"
+echo "Jumping Drops - HPC Parameter Sweep"
 echo "============================================="
 echo "Job started at: $(date)"
 echo "Running on node: $(hostname)"
@@ -348,10 +360,10 @@ for param_file in "${CASE_FILES[@]}"; do
     cp "$param_file" "$CASE_DIR/case.params"
     echo "Parameter file copied to case directory"
 
-    # Copy source file to case directory
-    SRC_FILE_ORIG="${SCRIPT_DIR}/simulationCases/dropImpact.c"
-    SRC_FILE_LOCAL="$CASE_DIR/dropImpact.c"
-    EXECUTABLE="$CASE_DIR/dropImpact"
+    # Copy main simulation source file to case directory
+    SRC_FILE_ORIG="${SCRIPT_DIR}/simulationCases/jumpingDrops_main.c"
+    SRC_FILE_LOCAL="$CASE_DIR/jumpingDrops_main.c"
+    EXECUTABLE="$CASE_DIR/jumpingDrops_main"
 
     if [ ! -f "$SRC_FILE_ORIG" ]; then
         echo "ERROR: Source file $SRC_FILE_ORIG not found" >&2
@@ -360,16 +372,29 @@ for param_file in "${CASE_FILES[@]}"; do
     fi
 
     cp "$SRC_FILE_ORIG" "$SRC_FILE_LOCAL"
-    echo "Source file copied to case directory"
+    echo "Main simulation source file copied to case directory"
+
+    # Copy common header file
+    COMMON_HEADER_ORIG="${SCRIPT_DIR}/simulationCases/jumpingDrops_common.h"
+    COMMON_HEADER_LOCAL="$CASE_DIR/jumpingDrops_common.h"
+
+    if [ ! -f "$COMMON_HEADER_ORIG" ]; then
+        echo "ERROR: Common header file $COMMON_HEADER_ORIG not found" >&2
+        ((FAILED_CASES++)) || true
+        continue
+    fi
+
+    cp "$COMMON_HEADER_ORIG" "$COMMON_HEADER_LOCAL"
+    echo "Common header file copied to case directory"
 
     # Change to case directory for compilation
     cd "$CASE_DIR"
 
-    # Compile with MPI
-    echo "Compiling with MPI..."
+    # Compile main simulation with MPI
+    echo "Compiling main simulation with MPI..."
     if CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc -I../../src-local \
         -Wall -O2 -D_MPI=1 -disable-dimensions \
-        dropImpact.c -o dropImpact -lm 2>&1; then
+        jumpingDrops_main.c -o jumpingDrops_main -lm 2>&1; then
         echo "Compilation successful"
     else
         echo "ERROR: Compilation failed for case $CASE_NO" >&2
@@ -378,17 +403,47 @@ for param_file in "${CASE_FILES[@]}"; do
         continue
     fi
 
+    # Check for dump file (from initialization phase)
+    if [ ! -f "dump" ]; then
+        # Try to copy dumpInit to dump
+        if [ -f "dumpInit" ]; then
+            echo "Copying dumpInit to dump for simulation"
+            cp dumpInit dump
+        else
+            echo "ERROR: No dump or dumpInit file found for case $CASE_NO" >&2
+            echo "       Run initialization phase locally first and transfer dumpInit" >&2
+            ((FAILED_CASES++)) || true
+            cd "$SCRIPT_DIR"
+            continue
+        fi
+    fi
+
     # Check for restart file
     if [ -f "restart" ]; then
         echo "Restart file found - simulation will resume from checkpoint"
     fi
 
-    # Run simulation with srun
-    echo "Running simulation with ${SLURM_NTASKS} MPI tasks..."
-    echo "Command: srun -n ${SLURM_NTASKS} ./dropImpact case.params"
+    # Parse parameters for execution
+    parse_param_file "case.params"
+    tmax=$(get_param "tmax")
+    Oh=$(get_param "Oh")
+    Bo=$(get_param "Bo")
+    MAXlevel=$(get_param "MAXlevel")
+
+    if [ -z "$tmax" ] || [ -z "$Oh" ] || [ -z "$Bo" ] || [ -z "$MAXlevel" ]; then
+        echo "ERROR: Missing required parameters in case.params for case $CASE_NO" >&2
+        ((FAILED_CASES++)) || true
+        cd "$SCRIPT_DIR"
+        continue
+    fi
+
+    # Run main simulation with srun
+    echo "Running main simulation with ${SLURM_NTASKS} MPI tasks..."
+    echo "Parameters: tmax=$tmax, Oh=$Oh, Bo=$Bo, MAXlevel=$MAXlevel"
+    echo "Command: srun -n ${SLURM_NTASKS} ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel"
     echo ""
 
-    if srun -n ${SLURM_NTASKS} ./dropImpact case.params; then
+    if srun -n ${SLURM_NTASKS} ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel; then
         echo ""
         echo "Case $CASE_NO completed successfully"
         ((SUCCESSFUL_CASES++)) || true
