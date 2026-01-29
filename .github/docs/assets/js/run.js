@@ -24,3 +24,19 @@ function run() {
 $(document).ready(function(){
     $("#runButton").show();
 });
+
+if (typeof $ !== 'undefined') {
+  $(document).ajaxError(function(event, jqxhr, settings) {
+    if (!settings || !settings.url || settings.url.indexOf('_run') === -1) {
+      return;
+    }
+    $('#runButton, #cancel, #update').removeAttr('disabled');
+    const messages = $('#messages');
+    if (messages.length) {
+      messages.html('<div class="error">Run failed. Please retry.</div>');
+    }
+    if (typeof updatePreviewPane === 'function') {
+      updatePreviewPane();
+    }
+  });
+}

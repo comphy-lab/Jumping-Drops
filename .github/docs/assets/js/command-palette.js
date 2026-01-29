@@ -127,7 +127,7 @@ function renderSections(sections, container) {
     function sanitizeHTML(html) {
       // Only allow these tags and attributes
       const allowedTags = ['i', 'span', 'svg', 'path'];
-      const allowedAttrs = ['class', 'viewBox', 'd', 'fill', 'stroke', 'stroke-width', 'xmlns'];
+      const allowedAttrs = ['class', 'viewbox', 'd', 'fill', 'stroke', 'stroke-width', 'xmlns'];
       
       // Create a temporary element to parse the HTML
       const temp = document.createElement('div');
@@ -183,30 +183,24 @@ function renderSections(sections, container) {
       
       // Render Font-Awesome & other inline-HTML icons -> sanitize to prevent XSS risks
       if (cmd.icon && typeof cmd.icon === 'string') {
-        // Strict validation: only allow Font Awesome icons that match the expected pattern
         const iconStr = cmd.icon.trim();
-        // Only allow Font Awesome icons with specific classes or SVG paths
-        if (iconStr.startsWith('<i') && 
-            (/class=\"(fa-|ai )/.test(iconStr) || iconStr.includes('fa-solid') ||
-             iconStr.includes('fa-brands') || iconStr.includes('fa-regular') ||
-             iconStr.includes('ai ai-'))) {
-          // Adding extra validation for classes
-          const validIconPattern = /^<i class=\"(fa|fas|far|fal|fab|ai)[\s-][\w\d\s-]+"><\/i>$/;
-          if (validIconPattern.test(iconStr)) {
-            iconEl.innerHTML = sanitizeHTML(iconStr);
-          } else {
-            // Fallback to displaying as text if pattern doesn't match exactly
-            iconEl.textContent = '🔍'; // Default search icon as fallback
-            if (DEBUG) {
-              console.warn('Invalid icon format detected:', iconStr);
-            }
-          }
+        const tempIcon = document.createElement('div');
+        tempIcon.innerHTML = iconStr;
+        const iconNode = tempIcon.firstElementChild;
+        const allowedClassPrefixes = ['fa', 'fas', 'far', 'fal', 'fab', 'fa-solid', 'fa-regular', 'fa-brands', 'ai'];
+        const hasAllowedClass = iconNode && Array.from(iconNode.classList || []).some(cls =>
+          allowedClassPrefixes.some(prefix => cls === prefix || cls.startsWith(`${prefix}-`))
+        );
+
+        if (iconNode && iconNode.tagName.toLowerCase() === 'i' && hasAllowedClass) {
+          iconEl.innerHTML = sanitizeHTML(iconStr);
         } else {
-          // Just use text for non-icon strings
-          iconEl.textContent = iconStr;
+          iconEl.textContent = '🔍';
+          if (DEBUG) {
+            console.warn('Invalid icon format detected:', iconStr);
+          }
         }
       } else {
-        // Default icon if none provided
         iconEl.textContent = '';
       }
       
@@ -434,11 +428,3 @@ document.addEventListener('DOMContentLoaded', function() {
 // Make functions available globally
 window.renderCommandResults = renderCommandResults;
 window.renderSections = renderSections;
-
-// Use the shared search database function from search-helper.js
-window.searchDatabaseForCommandPalette = async function(query) {
-  if (window.searchHelper && typeof window.searchHelper.searchDatabaseForCommandPalette === 'function') {
-    return window.searchHelper.searchDatabaseForCommandPalette(query);
-  }
-  return [];
-};

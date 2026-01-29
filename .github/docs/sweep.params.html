@@ -240,8 +240,11 @@
   <link rel="manifest" href="./assets/favicon/site.webmanifest">
 
   <!-- Scripts with proper loading attributes -->
+  <script>
+    window.ASSET_PATH_PREFIX = ".";
+  </script>
   <script src="./assets/js/jquery.min.js"></script>
-  <script src="./assets/js/jquery-ui.packed.js"></script>
+  <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js"></script>
   <script src="./assets/js/plots.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
   <!-- Config script must load before other scripts -->

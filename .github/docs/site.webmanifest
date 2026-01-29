@@ -3,17 +3,17 @@
     "short_name": "CoMPhy",
     "icons": [
         {
-            "src": "/assets/favicon/favicon-96x96.png",
+            "src": "favicon-96x96.png",
             "sizes": "96x96",
             "type": "image/png"
         },
         {
-            "src": "/assets/favicon/favicon.svg",
+            "src": "favicon.svg",
             "sizes": "any",
             "type": "image/svg+xml"
         },
         {
-            "src": "/assets/favicon/favicon.ico",
+            "src": "favicon.ico",
             "sizes": "48x48",
             "type": "image/x-icon"
         }
@@ -21,6 +21,6 @@
     "theme_color": "#ffffff",
     "background_color": "#ffffff",
     "display": "standalone",
-    "start_url": "/",
-    "scope": "/"
+    "start_url": "../..",
+    "scope": "../.."
 } 

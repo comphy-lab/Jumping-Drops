@@ -117,6 +117,55 @@
         }
     }
 
+    function normalizeAssetPrefix(prefix) {
+        if (!prefix || prefix === '.') {
+            return '.';
+        }
+        return prefix.replace(/\/$/, '');
+    }
+
+    function rewriteLegacyImgPaths(root) {
+        const base = normalizeAssetPrefix(window.ASSET_PATH_PREFIX || '.');
+        const scope = root && root.querySelectorAll ? root : document;
+        const images = scope.querySelectorAll('img[src^="/img/"]');
+        images.forEach(img => {
+            const src = img.getAttribute('src');
+            if (!src) {
+                return;
+            }
+            const filename = src.replace(/^\/img\//, '');
+            img.setAttribute('src', `${base}/assets/img/${filename}`);
+        });
+    }
+
+    function observeLegacyImgPaths() {
+        if (!window.MutationObserver) {
+            return;
+        }
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType !== 1) {
+                        return;
+                    }
+                    if (node.matches && node.matches('img[src^="/img/"]')) {
+                        rewriteLegacyImgPaths(node.parentNode || document);
+                        return;
+                    }
+                    if (node.querySelectorAll) {
+                        rewriteLegacyImgPaths(node);
+                    }
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        rewriteLegacyImgPaths(document);
+        observeLegacyImgPaths();
+    });
+
     /* Preloader
     * -------------------------------------------------- */
     const preloader = document.querySelector("#preloader");
@@ -317,7 +366,19 @@
     /* Copy Email Functionality
     * -------------------------------------------------- */
     window.copyEmail = function(button) {
+        if (!button) {
+            if (DEBUG) {
+                console.warn('copyEmail called without a button element.');
+            }
+            return;
+        }
         const text = button.getAttribute('data-text') || button.getAttribute('data-clipboard-text');
+        if (!text) {
+            if (DEBUG) {
+                console.warn('copyEmail called without text:', button);
+            }
+            return;
+        }
         copyToClipboard(text, button);
     };
 

@@ -5,7 +5,7 @@ function toline(line)
 }
 
 function check_path() {
-    checked = true;
+    let checked = true;
     $('input[type=checkbox]').each(function () {
 	if (!this.checked)
 	    checked = false;
@@ -34,7 +34,7 @@ function checkRunning(url, sec) {
     if ($('#status').html().search("running") != -1) {
 	setTimeout (function() {
 	    $('#status').load(url, function(data) {
-		remaining = data.match(/([0-9]+):([0-9]+)/);
+		let remaining = data.match(/([0-9]+):([0-9]+)/);
 		if (remaining)
 		    sec = Math.max (100*(parseFloat(remaining[1])*60. +
 					 parseFloat(remaining[2])), 2000);
