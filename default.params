@@ -1,0 +1,6 @@
+# Jumping Drops Simulation Parameters
+CaseNo=1000
+Oh=0.001
+Bo=0.001
+MAXlevel=10
+tmax=10.0
