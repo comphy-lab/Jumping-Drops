@@ -8,9 +8,24 @@ initialization (STL geometry to `dumpInit`) and a main MPI-compatible run.
 - MPI (optional, for parallel main phase)
 - macOS or Linux
 
-## Setup
-- Run `./reset_install_requirements.sh` to install Basilisk and generate `.project_config`.
-- Or copy `.project_config.example` to `.project_config` and set `BASILISK` manually.
+## Basilisk (Required)
+
+First-time install (or reinstall):
+```bash
+curl -sL https://raw.githubusercontent.com/comphy-lab/basilisk-C/main/reset_install_basilisk-ref-locked.sh | bash -s -- --ref=v2026-01-29 --hard
+```
+
+Subsequent runs (reuses existing `basilisk/` if same ref):
+```bash
+curl -sL https://raw.githubusercontent.com/comphy-lab/basilisk-C/main/reset_install_basilisk-ref-locked.sh | bash -s -- --ref=v2026-01-29
+```
+
+Load the environment before running the scripts:
+```bash
+source .project_config
+```
+
+> Note: Replace `v2026-01-29` with the latest release tag from https://github.com/comphy-lab/basilisk-C/releases.
 
 ## Quick start
 ```bash

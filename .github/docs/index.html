@@ -436,28 +436,35 @@ window.baseDomain = "https://comphy-lab.org/Jumping-Drops";
                 <li>MPI (optional, for parallel main phase)</li>
                 <li>macOS or Linux</li>
                 </ul>
-                <h2 id="setup">Setup</h2>
-                <ul>
-                <li>Run <code>./reset_install_requirements.sh</code> to
-                install Basilisk and generate
-                <code>.project_config</code>.</li>
-                <li>Or copy <code>.project_config.example</code> to
-                <code>.project_config</code> and set
-                <code>BASILISK</code> manually.</li>
-                </ul>
+                <h2 id="basilisk-required">Basilisk (Required)</h2>
+                <p>First-time install (or reinstall):</p>
+                <div class="code-block-container"><div class="code-block-container"><pre
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-sL</span> https://raw.githubusercontent.com/comphy-lab/basilisk-C/main/reset_install_basilisk-ref-locked.sh <span class="kw">|</span> <span class="fu">bash</span> <span class="at">-s</span> <span class="at">--</span> <span class="at">--ref</span><span class="op">=</span>v2026-01-29 <span class="at">--hard</span></span></code></pre></div></div>
+                <p>Subsequent runs (reuses existing
+                <code>basilisk/</code> if same ref):</p>
+                <div class="code-block-container"><div class="code-block-container"><pre
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-sL</span> https://raw.githubusercontent.com/comphy-lab/basilisk-C/main/reset_install_basilisk-ref-locked.sh <span class="kw">|</span> <span class="fu">bash</span> <span class="at">-s</span> <span class="at">--</span> <span class="at">--ref</span><span class="op">=</span>v2026-01-29</span></code></pre></div></div>
+                <p>Load the environment before running the scripts:</p>
+                <div class="code-block-container"><div class="code-block-container"><pre
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .project_config</span></code></pre></div></div>
+                <blockquote>
+                <p>Note: Replace <code>v2026-01-29</code> with the
+                latest release tag from
+                https://github.com/comphy-lab/basilisk-C/releases.</p>
+                </blockquote>
                 <h2 id="quick-start">Quick start</h2>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Full workflow (init + main)</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> default.params</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Init only (STL -&gt; dumpInit)</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--init-only</span> default.params</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Main only (MPI)</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--main-only</span> <span class="at">--mpi</span> <span class="at">--cores</span> 8 default.params</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameter sweep</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="ex">./runParameterSweep.sh</span> sweep.params</span></code></pre></div></div>
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Full workflow (init + main)</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> default.params</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Init only (STL -&gt; dumpInit)</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--init-only</span> default.params</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Main only (MPI)</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--main-only</span> <span class="at">--mpi</span> <span class="at">--cores</span> 8 default.params</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameter sweep</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ex">./runParameterSweep.sh</span> sweep.params</span></code></pre></div></div>
                 <h2 id="repository-structure">Repository structure</h2>
                 <ul>
                 <li><code>src-local/</code>: shared headers and helpers
@@ -504,10 +511,6 @@ window.baseDomain = "https://comphy-lab.org/Jumping-Drops";
                 <ul>
                 <li><a
                 href="default.params.html">default.params</a></li>
-                <li><a
-                href="reset_install_requirements-no-darcs.sh.html">reset_install_requirements-no-darcs.sh</a></li>
-                <li><a
-                href="reset_install_requirements.sh.html">reset_install_requirements.sh</a></li>
                 <li><a
                 href="runParameterSweep.sh.html">runParameterSweep.sh</a></li>
                 <li><a
