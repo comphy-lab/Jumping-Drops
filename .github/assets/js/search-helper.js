@@ -4,6 +4,7 @@
  */
 
 // Initialize the window.searchHelper namespace if it doesn't exist
+const DEBUG = window.CONFIG ? window.CONFIG.DEBUG : false;
 window.searchHelper = window.searchHelper || {};
 
 // Store the promise of search database and Fuse creation for memoization
@@ -104,7 +105,9 @@ window.searchHelper.searchDatabaseForCommandPalette = async function(query) {
     return [];
   }
 
-  console.log('Searching database for:', query);
+  if (DEBUG) {
+    console.log('Searching database for:', query);
+  }
 
   try {
     // Initialize Fuse if not already initialized
@@ -136,28 +139,6 @@ window.searchHelper.searchDatabaseForCommandPalette = async function(query) {
           return a.score - b.score;
         });
 
-        // Helper function for basic HTML escaping if htmlSanitizer is not available
-        const escapeHtml = (str) => {
-          if (!str) return '';
-          return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-        };
-
-        // Use the appropriate sanitizing function
-        const sanitize = (window.htmlSanitizer && typeof window.htmlSanitizer.escapeHTML === 'function')
-          ? window.htmlSanitizer.escapeHTML
-          : escapeHtml;
-
-        // If htmlSanitizer isn't available, log a warning once
-        if (!window.htmlSanitizer && !window.warnedAboutMissingSanitizer) {
-          console.warn('htmlSanitizer not available. Using basic string escaping for XSS protection.');
-          window.warnedAboutMissingSanitizer = true;
-        }
-
         // Return at most 5 results to avoid cluttering the command palette
         return sortedResults.slice(0, 5).map(result => {
           // Get raw values
@@ -165,9 +146,8 @@ window.searchHelper.searchDatabaseForCommandPalette = async function(query) {
           const content = result.item.content || '';
           const rawExcerpt = result.item.excerpt || (content && content.substring(0, 100) + '...') || '';
 
-          // Sanitize title and excerpt to prevent XSS
-          const safeTitle = sanitize(rawTitle);
-          const originalExcerpt = sanitize(rawExcerpt);
+          const safeTitle = rawTitle;
+          const originalExcerpt = rawExcerpt;
 
           return {
             id: `search-result-${result.refIndex}`,
@@ -194,4 +174,17 @@ window.searchHelper.searchDatabaseForCommandPalette = async function(query) {
   }
 
   return [];
+};
+
+// Provide a shared global wrapper for the command palette
+window.searchDatabaseForCommandPalette = async function(query) {
+  const helper = window.searchHelper;
+  const searchFn = helper && helper.searchDatabaseForCommandPalette;
+  if (typeof searchFn !== 'function') {
+    if (DEBUG) {
+      console.warn('searchHelper.searchDatabaseForCommandPalette unavailable; returning empty result.');
+    }
+    return [];
+  }
+  return searchFn.call(helper, query);
 };

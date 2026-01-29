@@ -9,6 +9,17 @@
 (function() {
   // Debug flag - set to false in production
   const DEBUG = false;
+  const EXTERNAL_WINDOW_FEATURES = 'noopener,noreferrer';
+
+  function openExternal(url) {
+    window.open(url, '_blank', EXTERNAL_WINDOW_FEATURES);
+  }
+
+  function safeRemoveModal(modal) {
+    if (modal && modal.parentNode) {
+      modal.parentNode.removeChild(modal);
+    }
+  }
   
   if (DEBUG) {
     console.log('Loading command data');
@@ -92,7 +103,7 @@
       title: "Visit GitHub",
       handler: () => {
         const githubOrg = window.githubOrg || 'comphy-lab';
-        window.open(`https://github.com/${githubOrg}`, '_blank');
+        openExternal(`https://github.com/${githubOrg}`);
       },
       section: "External Links",
       icon: '<i class="fa-brands fa-github"></i>'
@@ -100,21 +111,21 @@
     {
       id: "scholar",
       title: "Visit Google Scholar",
-      handler: () => { window.open('https://scholar.google.com/citations?user=tHb_qZoAAAAJ&hl=en', '_blank'); },
+      handler: () => { openExternal('https://scholar.google.com/citations?user=tHb_qZoAAAAJ&hl=en'); },
       section: "External Links",
       icon: '<i class="ai ai-google-scholar"></i>'
     },
     {
       id: "youtube",
       title: "Visit YouTube Channel",
-      handler: () => { window.open('https://www.youtube.com/@CoMPhyLab', '_blank'); },
+      handler: () => { openExternal('https://www.youtube.com/@CoMPhyLab'); },
       section: "External Links",
       icon: '<i class="fa-brands fa-youtube"></i>'
     },
     {
       id: "bluesky",
       title: "Visit Bluesky",
-      handler: () => { window.open('https://bsky.app/profile/comphy-lab.org', '_blank'); },
+      handler: () => { openExternal('https://bsky.app/profile/comphy-lab.org'); },
       section: "External Links",
       icon: '<i class="fa-brands fa-bluesky"></i>'
     },
@@ -139,7 +150,7 @@
     {
       id: "repository",
       title: "View Website Repository",
-      handler: () => { window.open('https://github.com/comphy-lab/comphy-lab.github.io', '_blank'); },
+      handler: () => { openExternal('https://github.com/comphy-lab/comphy-lab.github.io'); },
       section: "Help",
       icon: '<i class="fa-brands fa-github"></i>'
     }
@@ -221,7 +232,7 @@
       function sanitizeIcon(iconHtml) {
         // Only allow these tags and attributes - same as in command-palette.js
         const allowedTags = ['i', 'span', 'svg', 'path'];
-        const allowedAttrs = ['class', 'viewBox', 'd', 'fill', 'stroke', 'stroke-width', 'xmlns'];
+        const allowedAttrs = ['class', 'viewbox', 'd', 'fill', 'stroke', 'stroke-width', 'xmlns'];
         
         // Create a temporary element to parse the HTML
         const temp = document.createElement('div');
@@ -310,26 +321,15 @@
     
     // Add event listener to close
     document.getElementById('close-shortcuts-help').addEventListener('click', () => {
-      document.body.removeChild(modal);
+      safeRemoveModal(modal);
     });
     
     // Close when clicking outside
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
-        document.body.removeChild(modal);
+        safeRemoveModal(modal);
       }
     });
-  };
-  
-  // Use the shared search database function from search-helper.js
-  window.searchDatabaseForCommandPalette = async function(query) {
-    const helper = window.searchHelper;
-    const searchFn = helper && helper.searchDatabaseForCommandPalette;
-    if (typeof searchFn !== 'function') {
-      console.warn('searchHelper.searchDatabaseForCommandPalette unavailable; returning empty result.');
-      return [];
-    }
-    return searchFn.call(helper, query);
   };
   
   // Add page-specific command function
@@ -458,7 +458,7 @@
                 
                 if (matchingTag) {
                   // Remove the modal first
-                  document.body.removeChild(modal);
+                  safeRemoveModal(modal);
                   // Then trigger the click
                   matchingTag.click();
                 }
@@ -472,7 +472,7 @@
               
               if (e.key === 'Escape') {
                 // Close the modal
-                document.body.removeChild(modal);
+                safeRemoveModal(modal);
               } else if (e.key === 'Enter') {
                 // Click the selected button
                 if (tagButtons[selectedButtonIndex]) {
@@ -501,13 +501,13 @@
             
             // Add event listener to close button
             document.getElementById('close-tag-filter').addEventListener('click', () => {
-              document.body.removeChild(modal);
+              safeRemoveModal(modal);
             });
             
             // Close when clicking outside
             modal.addEventListener('click', (e) => {
               if (e.target === modal) {
-                document.body.removeChild(modal);
+          safeRemoveModal(modal);
               }
             });
             
