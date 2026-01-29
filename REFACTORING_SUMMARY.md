@@ -2,13 +2,13 @@
 
 ## Overview
 
-The jumping drops simulation code has been refactored from two monolithic files (JumpingDrops.c and JumpingDrops_Snellius.c) into a clean, modular architecture that separates initialization (STL geometry loading) from main simulation (MPI-compatible).
+The jumping drops simulation code has been refactored from two monolithic files (JumpingDrops_legacy.c and JumpingDrops_Snellius_legacy.c) into a clean, modular architecture that separates initialization (STL geometry loading) from main simulation (MPI-compatible).
 
 ## Files Created
 
 ### Source Code Files
 
-1. **`simulationCases/jumpingDrops_common.h`** (New)
+1. **`src-local/jumpingDrops_common.h`** (New)
    - Common header with shared definitions and functions
    - Contains error tolerances, physics parameters, boundary conditions
    - Includes `refRegion()`, `adapt()`, `writingFiles()`, and `logWriting()` functions
@@ -27,6 +27,10 @@ The jumping drops simulation code has been refactored from two monolithic files 
    - **Usage**: `./jumpingDrops_main tmax Oh Bo MAXlevel`
    - **Input**: Requires `dump` file (from `dumpInit`)
    - **Run**: HPC with MPI or locally (serial/parallel)
+
+4. **`src-local/parse_params.sh`** (New)
+   - Parameter file parser for `key=value` inputs
+   - Provides `parse_param_file` and `get_param` helpers
 
 ## Files Modified
 
@@ -49,7 +53,7 @@ The jumping drops simulation code has been refactored from two monolithic files 
 3. **`runSweepSnellius.sbatch`** (Updated)
    - **HPC-specific**: Runs main simulation only
    - Assumes `dumpInit` exists (transferred from local machine)
-   - Copies both `jumpingDrops_main.c` and `jumpingDrops_common.h`
+   - Copies `jumpingDrops_main.c` and compiles with headers from `src-local/`
    - Compiles with MPI support
    - Validates dump file before execution
    - Parses parameters and passes to executable
@@ -57,7 +61,7 @@ The jumping drops simulation code has been refactored from two monolithic files 
 ## Critical Fixes Applied
 
 ### 1. Missing Gravity Bug (FIXED)
-- **Issue**: `JumpingDrops_Snellius.c` was missing `G.y = -Bo`
+- **Issue**: `JumpingDrops_Snellius_legacy.c` was missing `G.y = -Bo`
 - **Fix**: Both init and main now include `G.y = -Bo`
 - **Impact**: Simulations now correctly include gravitational effects
 
@@ -199,12 +203,14 @@ tmax=10.0
 
 ```
 Jumping-Drops/
-├── simulationCases/
+├── src-local/
 │   ├── jumpingDrops_common.h         # Shared definitions (NEW)
+│   └── parse_params.sh               # Parameter parsing helpers
+├── simulationCases/
 │   ├── jumpingDrops_init.c           # Initialization (NEW)
 │   ├── jumpingDrops_main.c           # Main simulation (NEW)
-│   ├── JumpingDrops.c              # Old (deprecated)
-│   ├── JumpingDrops_Snellius.c     # Old (deprecated)
+│   ├── JumpingDrops_legacy.c              # Old (deprecated)
+│   ├── JumpingDrops_Snellius_legacy.c     # Old (deprecated)
 │   └── <CaseNo>/                   # Case directories
 │       ├── case.params             # Parameter file
 │       ├── InitialCondition.stl    # STL geometry (for init)
@@ -216,7 +222,10 @@ Jumping-Drops/
 │           └── snapshot-*.dump
 ├── runSimulation.sh                # Single case runner (UPDATED)
 ├── runParameterSweep.sh            # Parameter sweep (UPDATED)
-└── runSweepSnellius.sbatch         # HPC sweep (UPDATED)
+├── runSweepSnellius.sbatch         # HPC sweep (UPDATED)
+├── default.params                  # Example single-case parameters
+├── sweep.params                    # Example sweep configuration
+└── .project_config.example         # Basilisk environment template
 ```
 
 ## Advantages of Modular Design
@@ -248,7 +257,7 @@ Jumping-Drops/
 
 ## Migration Guide
 
-### From Old Code (JumpingDrops.c)
+### From Old Code (JumpingDrops_legacy.c)
 **Before:**
 ```bash
 # Had to run full initialization every time
@@ -265,11 +274,11 @@ Jumping-Drops/
 ./jumpingDrops_main tmax2 Oh Bo MAXlevel
 ```
 
-### From Old Code (JumpingDrops_Snellius.c)
+### From Old Code (JumpingDrops_Snellius_legacy.c)
 **Before:**
 ```bash
 # On HPC (missing gravity!)
-mpirun -np 48 ./JumpingDrops_Snellius case.params
+mpirun -np 48 ./JumpingDrops_Snellius_legacy case.params
 ```
 
 **After:**

@@ -14,6 +14,7 @@ if [ -f "${SCRIPT_DIR}/.project_config" ]; then
     source "${SCRIPT_DIR}/.project_config"
 else
     echo "ERROR: .project_config not found" >&2
+    echo "       Run ./reset_install_requirements.sh or copy .project_config.example" >&2
     exit 1
 fi
 
@@ -346,7 +347,7 @@ echo "Execution"
 echo "========================================="
 
 # Parse parameters from case.params
-source ../src-local/parse_params.sh
+source "${SCRIPT_DIR}/src-local/parse_params.sh"
 parse_param_file "case.params"
 
 Oh=$(get_param "Oh")

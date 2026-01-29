@@ -3,11 +3,11 @@
 ## TL;DR - What Changed?
 
 **Old (Deprecated):**
-- `JumpingDrops.c` - Local initialization with STL
-- `JumpingDrops_Snellius.c` - HPC version (had missing gravity bug!)
+- `JumpingDrops_legacy.c` - Local initialization with STL
+- `JumpingDrops_Snellius_legacy.c` - HPC version (had missing gravity bug!)
 
 **New (Use These):**
-- `jumpingDrops_common.h` - Shared definitions
+- `src-local/jumpingDrops_common.h` - Shared definitions
 - `jumpingDrops_init.c` - Init phase (local, STL → dumpInit)
 - `jumpingDrops_main.c` - Main phase (MPI-compatible)
 
@@ -157,9 +157,13 @@ Auto-created by sbatch script:
 ```
 simulationCases/<CaseNo>/
 ├── jumpingDrops_main.c     # Copied by script
-├── jumpingDrops_common.h   # Copied by script
 ├── jumpingDrops_main       # Compiled executable
 └── intermediate/         # Created if needed
+```
+
+Shared header used during compilation:
+```
+src-local/jumpingDrops_common.h
 ```
 
 ## Performance Tips

@@ -84,6 +84,7 @@ if [ -f "${SCRIPT_DIR}/.project_config" ]; then
     echo "BASILISK: $BASILISK"
 else
     echo "ERROR: .project_config not found" >&2
+    echo "       Run ./reset_install_requirements.sh or copy .project_config.example" >&2
     exit 1
 fi
 echo ""
@@ -373,19 +374,6 @@ for param_file in "${CASE_FILES[@]}"; do
 
     cp "$SRC_FILE_ORIG" "$SRC_FILE_LOCAL"
     echo "Main simulation source file copied to case directory"
-
-    # Copy common header file
-    COMMON_HEADER_ORIG="${SCRIPT_DIR}/simulationCases/jumpingDrops_common.h"
-    COMMON_HEADER_LOCAL="$CASE_DIR/jumpingDrops_common.h"
-
-    if [ ! -f "$COMMON_HEADER_ORIG" ]; then
-        echo "ERROR: Common header file $COMMON_HEADER_ORIG not found" >&2
-        ((FAILED_CASES++)) || true
-        continue
-    fi
-
-    cp "$COMMON_HEADER_ORIG" "$COMMON_HEADER_LOCAL"
-    echo "Common header file copied to case directory"
 
     # Change to case directory for compilation
     cd "$CASE_DIR"
