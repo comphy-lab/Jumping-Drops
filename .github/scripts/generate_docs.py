@@ -61,20 +61,32 @@ Organization: CoMPhy Lab, Durham University
 import ast
 import inspect
 import os, subprocess, re, shutil, argparse, html, json
+import importlib
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional, Callable, Any
+
+HTMLExporter: Optional[type] = None
+NBCONVERT_AVAILABLE = False
 try:
-    from nbconvert import HTMLExporter
-    NBCONVERT_AVAILABLE = True
+    nbconvert = importlib.import_module("nbconvert")
+    HTMLExporter = getattr(nbconvert, "HTMLExporter", None)
+    if HTMLExporter is not None:
+        NBCONVERT_AVAILABLE = True
+    else:
+        print("Warning: nbconvert is missing HTMLExporter. Falling back to nbviewer embedding.")
 except ImportError:
-    NBCONVERT_AVAILABLE = False
     print("Warning: nbconvert not available. Falling back to nbviewer embedding.")
 
+BeautifulSoup: Optional[Callable[..., Any]] = None
+BS4_AVAILABLE = False
 try:
-    from bs4 import BeautifulSoup
-    BS4_AVAILABLE = True
+    bs4 = importlib.import_module("bs4")
+    BeautifulSoup = getattr(bs4, "BeautifulSoup", None)
+    if BeautifulSoup is not None:
+        BS4_AVAILABLE = True
+    else:
+        print("Warning: BeautifulSoup4 is missing BeautifulSoup. Some notebook rendering features may be limited.")
 except ImportError:
-    BS4_AVAILABLE = False
     print("Warning: BeautifulSoup4 not available. Some notebook rendering features may be limited.")
 
 # Parse args
@@ -278,18 +290,8 @@ REPO_NAME = REPO_ROOT.name
 GITHUB_ORG, GITHUB_REPO = parse_git_remote()
 debug_print(f"Auto-detected: GitHub org={GITHUB_ORG}, repo={GITHUB_REPO}")
 
-# Read domain from CNAME file or use default (org domain + repo path for project sites)
-try:
-    CNAME_PATH = REPO_ROOT / 'CNAME'
-    if CNAME_PATH.exists():
-        # Custom domain points directly to this repo
-        BASE_DOMAIN = f"https://{CNAME_PATH.read_text().strip()}"
-    else:
-        # GitHub Pages project site: org domain + repo path
-        BASE_DOMAIN = f"https://comphy-lab.org/{GITHUB_REPO}"
-except Exception as e:
-    print(f"Warning: Could not read CNAME file: {e}")
-    BASE_DOMAIN = f"https://comphy-lab.org/{GITHUB_REPO}"
+# GitHub Pages project site: org domain + repo path
+BASE_DOMAIN = f"https://comphy-lab.org/{GITHUB_REPO}"
 
 def extract_h1_from_readme(readme_path: Path) -> str:
     """
@@ -569,7 +571,7 @@ def process_jupyter_notebook(file_path: Path) -> str:
         
         # Try to render notebook locally with nbconvert if available
         notebook_html_content = ""
-        if NBCONVERT_AVAILABLE:
+        if NBCONVERT_AVAILABLE and HTMLExporter is not None:
             try:
                 # Configure the HTML exporter
                 html_exporter = HTMLExporter()
@@ -580,7 +582,7 @@ def process_jupyter_notebook(file_path: Path) -> str:
                 
                 # Extract just the notebook content (remove full HTML structure)
                 # We'll embed this within our existing page structure
-                if BS4_AVAILABLE:
+                if BS4_AVAILABLE and BeautifulSoup is not None:
                     soup = BeautifulSoup(body, 'html.parser')
                     
                     # Find the main notebook container
@@ -970,8 +972,8 @@ def prepare_pandoc_input(file_path: Path, literate_c_script: Path) -> str:
 
 def run_pandoc(pandoc_input: str, output_html_path: Path, template_path: Path, 
                base_url: str, wiki_title: str, page_url: str, page_title: str,
-               asset_path_prefix: str, seo_metadata: Dict[str, str] = None,
-               source_path: str = None) -> str:
+               asset_path_prefix: str, seo_metadata: Optional[Dict[str, str]] = None,
+               source_path: Optional[str] = None) -> str:
     """
                Converts Markdown input to standalone HTML using Pandoc.
                
@@ -2133,8 +2135,12 @@ def create_favicon_files(docs_dir: Path, logos_dir: Path) -> bool:
         # Copy existing favicon files if available
         source_favicon_dir = Path(logos_dir.parent, "favicon")
         if source_favicon_dir.exists() and source_favicon_dir.is_dir():
+            manifest_source = source_favicon_dir / "site.webmanifest"
+            if manifest_source.exists() and manifest_source.is_file():
+                shutil.copy2(manifest_source, favicon_dir / manifest_source.name)
+                debug_print(f"Copied favicon file: {manifest_source.name}")
             for item in source_favicon_dir.glob('*'):
-                if item.is_file():
+                if item.is_file() and item.name != "site.webmanifest":
                     shutil.copy2(item, favicon_dir / item.name)
                     debug_print(f"Copied favicon file: {item.name}")
         
@@ -2155,19 +2161,26 @@ def create_favicon_files(docs_dir: Path, logos_dir: Path) -> bool:
   "short_name": "CoMPhy",
   "icons": [
     {
-      "src": "/assets/favicon/android-chrome-192x192.png",
-      "sizes": "192x192",
+      "src": "favicon-96x96.png",
+      "sizes": "96x96",
       "type": "image/png"
     },
     {
-      "src": "/assets/favicon/android-chrome-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
     }
   ],
   "theme_color": "#ffffff",
   "background_color": "#ffffff",
-  "display": "standalone"
+  "display": "standalone",
+  "start_url": "../..",
+  "scope": "../.."
 }''')
                 debug_print(f"Created site.webmanifest")
         
@@ -2301,16 +2314,110 @@ def copy_assets(assets_dir: Path, docs_dir: Path) -> bool:
         docs_assets_js_dir.mkdir(exist_ok=True, parents=True)
         if static_js_dir.exists() and static_js_dir.is_dir():
             for js_file in static_js_dir.glob("*.js"):
+                if js_file.name == "jquery-ui.packed.js":
+                    continue
                 try:
                     shutil.copy2(js_file, docs_assets_js_dir / js_file.name)
                     debug_print(f"Copied Basilisk JS file: {js_file.name}")
                 except Exception as e:
                     print(f"Error copying Basilisk JS file {js_file}: {e}")
 
+        # Copy Basilisk images
+        static_img_dir = DARCSIT_DIR / "static" / "img"
+        docs_assets_img_dir = docs_dir / "assets" / "img"
+        if static_img_dir.exists() and static_img_dir.is_dir():
+            docs_assets_img_dir.mkdir(exist_ok=True, parents=True)
+            for img_file in static_img_dir.glob("**/*"):
+                if img_file.is_file():
+                    rel_path = img_file.relative_to(static_img_dir)
+                    dest_path = docs_assets_img_dir / rel_path
+                    dest_path.parent.mkdir(exist_ok=True, parents=True)
+                    shutil.copy2(img_file, dest_path)
+                    debug_print(f"Copied Basilisk image: {img_file}")
+
+        # Patch Basilisk JS for project pages
+        patch_basilisk_js_assets(docs_assets_js_dir)
+
         return True
     except Exception as e:
         print(f"Error copying assets: {e}")
         return False
+
+def patch_basilisk_js_assets(docs_assets_js_dir: Path) -> None:
+    def declare_once(content: str, name: str, decl: str) -> str:
+        if re.search(rf"\b(let|const|var)\s+{re.escape(name)}\b", content):
+            return content
+        return re.sub(
+            rf"(?m)^(\s*){re.escape(name)}\s*=",
+            rf"\1{decl} {name} =",
+            content,
+            count=1
+        )
+
+    targets = ["plots.js", "status.js", "preview.js", "run.js"]
+
+    for filename in targets:
+        file_path = docs_assets_js_dir / filename
+        if not file_path.exists():
+            continue
+        try:
+            content = file_path.read_text(encoding='utf-8')
+        except Exception as e:
+            print(f"Warning: Could not read {file_path}: {e}")
+            continue
+
+        updated = content
+
+        if filename == "plots.js":
+            updated = declare_once(updated, "id", "let")
+            if "function render_math" in updated and "typeof katex" not in updated:
+                updated = re.sub(
+                    r"(function\s+render_math\s*\([^)]*\)\s*{)",
+                    r"\1\n  if (typeof katex === 'undefined') {\n    return;\n  }\n",
+                    updated,
+                    count=1
+                )
+            if "function hide_plots" in updated and not re.search(r"\bhide_plots\s*\(\)\s*;", updated):
+                updated = updated.rstrip() + "\n\nif (typeof $ !== 'undefined') {\n  $(document).ready(function() {\n    if (typeof hide_plots === 'function') {\n      hide_plots();\n    }\n    if (typeof render_math === 'function') {\n      render_math();\n    }\n  });\n} else if (typeof hide_plots === 'function') {\n  hide_plots();\n}\n"
+
+        if filename == "status.js":
+            updated = declare_once(updated, "remaining", "let")
+            updated = re.sub(
+                r"\$\(['\"]#status['\"]\)\.html\(\)\.search",
+                "String($('#status').html() || '').search",
+                updated
+            )
+
+        if filename == "preview.js":
+            updated = declare_once(updated, "checked", "let")
+            updated = declare_once(updated, "remaining", "let")
+
+        if filename == "run.js" and "ajaxError" not in updated:
+            error_block = '''
+if (typeof $ !== 'undefined') {
+  $(document).ajaxError(function(event, jqxhr, settings) {
+    if (!settings || !settings.url || settings.url.indexOf('_run') === -1) {
+      return;
+    }
+    $('#runButton, #cancel, #update').removeAttr('disabled');
+    const messages = $('#messages');
+    if (messages.length) {
+      messages.html('<div class="error">Run failed. Please retry.</div>');
+    }
+    if (typeof updatePreviewPane === 'function') {
+      updatePreviewPane();
+    }
+  });
+}
+'''
+            updated = updated.rstrip() + "\n\n" + error_block.lstrip()
+
+        if updated != content:
+            try:
+                file_path.write_text(updated, encoding='utf-8')
+                debug_print(f"Patched Basilisk JS file: {filename}")
+            except Exception as e:
+                print(f"Warning: Could not write {file_path}: {e}")
 
 def main():
     """
@@ -2409,7 +2516,7 @@ def main():
         js_src_dir = BASILISK_DIR / 'src' / 'darcsit' / 'static' / 'js'
         js_dest_dir = DOCS_DIR / 'assets' / 'js'
         js_dest_dir.mkdir(parents=True, exist_ok=True)
-        for js_file in ['jquery.min.js', 'jquery-ui.packed.js', 'plots.js']:
+        for js_file in ['jquery.min.js', 'plots.js']:
             src = js_src_dir / js_file
             dst = js_dest_dir / js_file
             if src.exists():

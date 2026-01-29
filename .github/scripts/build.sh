@@ -51,6 +51,9 @@ PROJECT_ROOT=$(dirname "$(dirname "$SCRIPT_DIR")") # Go two levels up from scrip
 # Change to project root to ensure paths work correctly
 cd "$PROJECT_ROOT"
 
+# Documentation output directory
+DOCS_DIR="$PROJECT_ROOT/.github/docs"
+
 # Auto-detect GitHub organization from git remote
 GITHUB_ORG=$(git remote get-url origin 2>/dev/null | sed -n 's|.*[:/]\([^/]*\)/.*|\1|p')
 if [ -z "$GITHUB_ORG" ]; then
@@ -65,9 +68,9 @@ SEARCH_REPO="${SEARCH_REPO:-comphy-search}"
 echo "Attempting to clone search database from ${GITHUB_ORG}/${SEARCH_REPO}..."
 
 if git clone --depth=1 "https://github.com/${GITHUB_ORG}/${SEARCH_REPO}.git" 2>/dev/null; then
-    mkdir -p .github/assets/js
+    mkdir -p "$DOCS_DIR/assets/js"
     if [ -f "${SEARCH_REPO}/search_db.json" ]; then
-        cp "${SEARCH_REPO}/search_db.json" .github/assets/js/search_db.json
+        cp "${SEARCH_REPO}/search_db.json" "$DOCS_DIR/assets/js/search_db.json"
         echo "Search database copied successfully"
     else
         echo "Warning: search_db.json not found in ${SEARCH_REPO} repository"
@@ -77,7 +80,6 @@ else
     echo "Warning: Could not clone ${GITHUB_ORG}/${SEARCH_REPO}. Search functionality may be limited."
     echo "This is expected if the search repository doesn't exist for your organization."
 fi
-DOCS_DIR="$PROJECT_ROOT/.github/docs"
 PYTHON_SCRIPT="$PROJECT_ROOT/.github/scripts/generate_docs.py"
 
 # Function to display messages

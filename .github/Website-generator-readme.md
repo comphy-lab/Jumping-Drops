@@ -33,7 +33,7 @@
 
 ## Overview
 
-This directory contains all the necessary files and scripts for generating and deploying the documentation of codes developed by CoMPhy Lab. The website is generated from source code files in the repository and is automatically deployed based on the repository configuration (domain from CNAME file, repository name auto-detected from git). Generated HTML output is written to `.github/docs/`.
+This directory contains all the necessary files and scripts for generating and deploying the documentation of codes developed by CoMPhy Lab. The website is generated from source code files in the repository and is automatically deployed to `https://comphy-lab.org/{repo}` with the repository name auto-detected from git. Generated HTML output is written to `.github/docs/`.
 
 ## Website Generation Process
 
@@ -45,6 +45,12 @@ The website generation process is handled by the `generate_docs.py` script, whic
 4. **Post-Processing**: The generated HTML is enhanced with additional features like code highlighting and navigation.
 5. **Index Generation**: An index page is created from the README.md file.
 6. **SEO Optimization**: Robots.txt and sitemap.xml files are generated for search engines.
+
+### Optional notebook rendering
+
+- If `nbconvert`/`jupyter` are installed, notebooks render locally in the docs.
+- Otherwise the generator falls back to nbviewer embeds.
+- On Windows, avoid installing `nbconvert` until a patched release is available.
 
 ### Key Components
 
@@ -105,9 +111,8 @@ This HTML template is used by Pandoc to generate the HTML pages:
 
 ## Deployment
 
-The website is deployed using GitHub Pages via GitHub Actions. The deployment URL is automatically determined from:
-- **Domain**: Read from the `CNAME` file in the repository root
-- **Path**: Auto-detected from the repository name via git remote
+The website is deployed using GitHub Pages via GitHub Actions. The deployment URL is:
+- `https://comphy-lab.org/{repo}` (repository name auto-detected via git remote)
 
 The deployment process involves:
 1. Generating the documentation using `build.sh` (output in `.github/docs/`).
