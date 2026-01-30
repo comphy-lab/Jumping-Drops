@@ -1,45 +1,73 @@
 /**
-# Title: Jumping Drops - Initialization Phase
-- Author: Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)
-- CoMPhy Lab, Durham University
+# Jumping Drops - Initialization Phase
 
-Purpose: Creates initial condition from STL geometry
-Usage: ./jumpingDrops_init Oh Bo MAXlevel
-Output: Creates dumpInit file for continuation with jumpingDrops_main.c
+Creates the initial condition from STL geometry and outputs a `dumpInit` file
+for continuation with the main simulation phase.
 
-This version includes distance.h and STL loading, which are
-incompatible with MPI. Run this locally to generate initial dump,
-then use jumpingDrops_main.c with MPI for the full simulation.
+## Usage
 
-============================================================
-Phase-Specific Includes
-============================================================
+```bash
+./jumpingDrops_init Oh Bo MAXlevel
+```
+
+Example:
+
+```bash
+./jumpingDrops_init 0.001 0.001 10
+```
+
+## Inputs
+
+- `Oh`: Ohnesorge number (dimensionless viscosity)
+- `Bo`: Bond number (dimensionless gravity)
+- `MAXlevel`: Maximum AMR refinement level
+- `InitialCondition.stl`: STL geometry file (must exist in working directory)
+
+## Outputs
+
+- `dumpInit`: Binary dump file containing initialized volume fraction field
+- `intermediate/`: Directory for snapshot files
+
+## Dependencies
+
+This file includes `distance.h` and `reduced.h` for STL geometry handling,
+which are **not MPI-compatible**. Run this phase locally or on a single core
+to generate the initial condition, then transfer `dumpInit` to the compute
+environment for the main simulation.
+
+## Author
+
+Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)  
+CoMPhy Lab, Durham University  
+Last updated: 2026-01-30
+
+## Phase-Specific Includes
 */
 
 #include "distance.h"                 // STL geometry handling (NOT MPI-compatible)
 #include "reduced.h"                  // Reduced gravity model
 
 /**
-============================================================
-Common Definitions
-============================================================
+## Common Definitions
+
+Includes shared constants, tolerances, and helper functions.
 */
 
 #include "jumpingDrops_common.h"
 
-/** 
-============================================================
-Global Variable Definitions
-============================================================
+/**
+## Global Variable Definitions
+
+Runtime parameters set from command-line arguments.
 */
 
 double tmax, Oh, Bo;
 int MAXlevel;
 
 /**
-============================================================
-Main Function
-============================================================
+## Main Function
+
+Parses arguments, sets fluid properties, and starts the initialization run.
 */
 
 int main(int argc, char *argv[]) {
@@ -93,11 +121,12 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-/** 
-============================================================
-Initialization Event
-============================================================
-Loads STL geometry and creates initial volume fraction field
+/**
+## Initialization Event
+
+Loads STL geometry from `InitialCondition.stl`, computes the distance field,
+adapts the mesh, and converts the distance field to a volume fraction field.
+The resulting state is saved to `dumpInit` for use by the main simulation.
 */
 
 event init(t = 0){
