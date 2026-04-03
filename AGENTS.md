@@ -1,28 +1,41 @@
 # Jumping Drops - Agent Guidance
 
 ## Repository layout
-- `src-local/`: shared headers and shell helpers (`jumpingDrops_common.h`, `parse_params.sh`).
-- `simulationCases/`: Basilisk C entry points and per-case output folders.
-- `runSimulation.sh`, `runParameterSweep.sh`, `runSweepSnellius.sbatch`: primary workflows.
-- `default.params`, `sweep.params`: example parameter inputs.
+
+- `src-local/` holds shared Basilisk headers and parameter parsing helpers.
+- `simulationCases/` holds the active Basilisk entry points plus preserved legacy sources.
+- Root scripts are the primary user workflows: `runSimulation.sh`, `runParameterSweep.sh`, and `runSweepSnellius.sbatch`.
+- Root parameter files are `default.params` and `sweep.params`.
 
 ## Setup
-- Run `./reset_install_requirements.sh` to install Basilisk and generate `.project_config`.
-- Or copy `.project_config.example` to `.project_config` and set `BASILISK` manually.
-- Ensure `qcc` is on `PATH` after sourcing `.project_config`.
+
+- Copy `.project_config.example` to `.project_config` if a local project config does not exist yet.
+- Source `.project_config` before running the scripts so `qcc` resolves from the configured Basilisk tree.
+- Treat `basilisk/` as a local dependency; it is intentionally ignored by git.
+
+## Runtime parameter model
+
+- Use `key=value` parameter files.
+- Required case keys: `CaseNo`, `Oh`, `Bo`, `MAXlevel`, `tmax`.
+- Required sweep keys: `BASE_CONFIG`, `CASE_START`, `CASE_END`, and one or more `SWEEP_*` variables.
+- Shell workflows must reuse `src-local/parse_params.sh`.
+- Basilisk entry points must read runtime values through `src-local/parse_params.h` and `src-local/params.h`.
+- The executable contract is `./jumpingDrops_init case.params` and `./jumpingDrops_main case.params`.
 
 ## Running
+
 - Single case: `./runSimulation.sh default.params`
 - Init only: `./runSimulation.sh --init-only default.params`
-- Main only (MPI): `./runSimulation.sh --main-only --mpi --cores 8 default.params`
+- Main only with MPI: `./runSimulation.sh --main-only --mpi --cores 8 default.params`
 - Sweep: `./runParameterSweep.sh sweep.params`
-- HPC: `runSweepSnellius.sbatch` expects `dumpInit` already transferred per case.
-
-## Parameters
-- Param files are `key=value` lines.
-- Required keys: `CaseNo`, `Oh`, `Bo`, `MAXlevel`, `tmax`.
-- Sweep files define `BASE_CONFIG`, `CASE_START`, `CASE_END`, and `SWEEP_*` values.
+- Sweep dry run: `./runParameterSweep.sh --dry-run sweep.params`
+- HPC: `runSweepSnellius.sbatch` expects `dumpInit` already transferred per case and delegates to `runParameterSweep.sh --skip-init --mpi`.
 
 ## Notes
-- STL geometry is only used in the init phase (`jumpingDrops_init.c`, no MPI).
-- Main simulation (`jumpingDrops_main.c`) is MPI-compatible and restores from `dump`.
+
+- `simulationCases/jumpingDrops_init.c` is serial-only because it uses STL geometry support.
+- `simulationCases/jumpingDrops_main.c` is the MPI-capable executable and restores from `dump`.
+- `runSimulation.sh` creates `simulationCases/<CaseNo>/`, copies the chosen parameter file to `case.params`, and executes from that directory.
+- `runParameterSweep.sh` must keep generated case counts exactly consistent with `CASE_START` and `CASE_END`.
+- `runSweepSnellius.sbatch` should stay a thin environment wrapper; shared sweep and case logic belongs in the root runner scripts.
+- Preserve legacy sources and generated case outputs unless the user explicitly asks to remove them.

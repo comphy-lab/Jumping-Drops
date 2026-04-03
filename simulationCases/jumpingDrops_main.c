@@ -7,27 +7,18 @@ the initialization phase. This version is MPI-compatible for parallel execution.
 ## Usage
 
 ```bash
-./jumpingDrops_main tmax Oh Bo MAXlevel
-```
-
-Example (serial):
-
-```bash
-./jumpingDrops_main 10.0 0.001 0.001 10
+./jumpingDrops_main [case.params]
 ```
 
 Example (parallel with MPI):
 
 ```bash
-mpirun -np 8 ./jumpingDrops_main 10.0 0.001 0.001 10
+mpirun -np 8 ./jumpingDrops_main case.params
 ```
 
 ## Inputs
 
-- `tmax`: Maximum simulation time (dimensionless)
-- `Oh`: Ohnesorge number (dimensionless viscosity)
-- `Bo`: Bond number (dimensionless gravity)
-- `MAXlevel`: Maximum AMR refinement level
+- `case.params`: runtime parameter file with `tmax`, `Oh`, `Bo`, and `MAXlevel`
 - `dump` or `dumpInit`: Binary dump file from initialization phase (must exist)
 
 ## Outputs
@@ -62,6 +53,7 @@ Includes shared constants, tolerances, and helper functions.
 */
 
 #include "jumpingDrops_common.h"
+#include "params.h"
 
 /**
 ## Global Variable Definitions
@@ -76,26 +68,20 @@ int MAXlevel;
 /**
 ## Main Function
 
-Parses arguments, sets fluid properties, and starts the main simulation run.
+Loads runtime parameters from `case.params`, sets fluid properties, and starts
+the main simulation run.
 */
 
 int main(int argc, char *argv[]) {
-  // Parse command-line arguments
-  // argv[1]: Maximum simulation time (tmax)
-  // argv[2]: Ohnesorge number (Oh)
-  // argv[3]: Bond number (Bo)
-  // argv[4]: Maximum refinement level (MAXlevel)
-  if (argc < 5) {
-    fprintf(ferr, "ERROR: Insufficient arguments\n");
-    fprintf(ferr, "Usage: %s tmax Oh Bo MAXlevel\n", argv[0]);
-    fprintf(ferr, "Example: %s 10.0 0.001 0.001 10\n", argv[0]);
+  if (!params_init_from_argv(argc, argv)) {
+    fprintf(ferr, "Usage: %s [case.params]\n", argv[0]);
     return 1;
   }
 
-  tmax = atof(argv[1]);
-  Oh = atof(argv[2]);
-  Bo = atof(argv[3]);
-  MAXlevel = atoi(argv[4]);
+  tmax = param_double("tmax", 10.0);
+  Oh = param_double("Oh", 1e-3);
+  Bo = param_double("Bo", 1e-3);
+  MAXlevel = param_int("MAXlevel", 10);
 
   // Initialize grid
   init_grid (1 << MINlevel);
@@ -104,6 +90,7 @@ int main(int argc, char *argv[]) {
   fprintf(ferr, "==============================================\n");
   fprintf(ferr, "Jumping drops - Main Simulation Phase\n");
   fprintf(ferr, "==============================================\n");
+  fprintf(ferr, "Parameter file = %s\n", params_source_path());
   fprintf(ferr, "tmax = %g\n", tmax);
   fprintf(ferr, "Oh = %g\n", Oh);
   fprintf(ferr, "Bo = %g\n", Bo);
