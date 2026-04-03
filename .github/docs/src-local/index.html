@@ -440,7 +440,7 @@
 <tr>
   <td class="file-icon"><span class="file-other"></span></td>
   <td class="file-link" style="padding-right: 2em;"><a href="parse_params.sh.html" class="doc-link-button">parse_params.sh</a></td>
-  <td class="file-desc">PARAMKEYS=() trim() { local s='\$1' s='\${s'\${s%%[![:space:]]}'}' s='\${s%'\${s[![:space:]]}'}' printf '%s' '\$s' } ...</td>
+  <td class="file-desc">declare -a PARAMKEYS=() trimwhitespace() { local s='\${1-}' s='\${s'\${s%%[![:space:]]}'}' s='\${s%'\${s[![:space:]]}...</td>
 </tr>
 </table>
 </div>
