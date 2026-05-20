@@ -32,8 +32,8 @@ environment for the main simulation.
 
 ## Author
 
-Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)  
-CoMPhy Lab, Durham University  
+Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)
+CoMPhy Lab, Durham University
 Last updated: 2026-01-30
 
 ## Phase-Specific Includes

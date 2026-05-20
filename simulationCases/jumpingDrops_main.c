@@ -39,8 +39,8 @@ MPI-aware logging (only rank 0 writes to files).
 
 ## Author
 
-Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)  
-CoMPhy Lab, Durham University  
+Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)
+CoMPhy Lab, Durham University
 Last updated: 2026-01-30
 */
 
