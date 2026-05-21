@@ -15,7 +15,9 @@ Provides typed helpers on top of `parse_params.h` for Basilisk entry points.
 
 #include <stdbool.h>
 #include <stdlib.h>
-#include <strings.h>
+/* <strings.h> omitted: qcc mis-parses its GNU extensions, triggering
+   spurious locale-header redefinitions. Declare what we use directly. */
+extern int strcasecmp(const char *s1, const char *s2);
 
 #include "parse_params.h"
 

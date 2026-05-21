@@ -53,6 +53,7 @@ Includes shared constants, tolerances, and helper functions.
 */
 
 #include "jumpingDrops_common.h"
+#include "reduced.h"                  // Reduced gravity model (provides coord G)
 #include "params.h"
 
 /**
@@ -104,7 +105,7 @@ int main(int argc, char *argv[]) {
   rho1 = 1.0;                         // liquid density (normalized)
   mu1 = Oh;                           // liquid viscosity
   rho2 = Rho21;                       // gas density
-  mu2 = Mu21*Oh;                      // gas viscosity (consistent with init)
+  mu2 = 1e-5;                         // gas viscosity (consistent with init)
   f.sigma = 1.0;                      // surface tension (normalized)
   G.y = -Bo;                          // gravity (CRITICAL FIX: was missing!)
 

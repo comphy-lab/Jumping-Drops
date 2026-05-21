@@ -36,19 +36,17 @@ Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)
 CoMPhy Lab, Durham University
 Last updated: 2026-01-30
 
-## Phase-Specific Includes
-*/
+## Includes
 
-#include "distance.h"                 // STL geometry handling (NOT MPI-compatible)
-#include "reduced.h"                  // Reduced gravity model
-
-/**
-## Common Definitions
-
-Includes shared constants, tolerances, and helper functions.
+`jumpingDrops_common.h` brings in the octree grid, the Navier-Stokes solver
+and the two-phase fields. `distance.h` (STL geometry, NOT MPI-compatible) and
+`reduced.h` (reduced gravity) depend on those, so they are included after the
+common header.
 */
 
 #include "jumpingDrops_common.h"
+#include "distance.h"                 // STL geometry handling (NOT MPI-compatible)
+#include "reduced.h"                  // Reduced gravity model
 #include "params.h"
 
 /**
@@ -98,7 +96,7 @@ int main(int argc, char *argv[]) {
   rho1 = 1.0;                         // liquid density (normalized)
   mu1 = Oh;                           // liquid viscosity
   rho2 = Rho21;                       // gas density
-  mu2 = Mu21*Oh;                      // gas viscosity (consistent with main)
+  mu2 = 1e-5;                         // gas viscosity (consistent with main)
   f.sigma = 1.0;                      // surface tension (normalized)
   G.y = -Bo;                          // gravity (CRITICAL: must match main phase)
 
@@ -162,10 +160,10 @@ event init(t = 0){
 
     // Adapt mesh based on distance field
     fprintf(ferr, "Adapting mesh based on STL geometry...\n");
-    while (adapt_wavelet_limited ((scalar *){f, d},
-                                   (double[]){1e-6, 1e-6*L0},
-                                   refRegion,
-                                   minlevel=MINlevel).nf);
+    while (adapt_wavelet ((scalar *){f, d},
+                           (double[]){1e-6, 1e-6*L0},
+                           maxlevel=MAXlevel,
+                           minlevel=MINlevel).nf);
 
     // Convert distance field to volume fraction
     vertex scalar phi[];

@@ -13,7 +13,6 @@ This header ensures consistent behavior across both phases by centralizing:
 - Adaptive mesh refinement tolerances
 - Fluid property ratios
 - Boundary conditions
-- Refinement region definitions
 - Event handlers (adapt, snapshot writing, log writing)
 
 ## Usage
@@ -40,7 +39,6 @@ Requires Basilisk C headers:
 - `two-phase.h`
 - `navier-stokes/conserving.h`
 - `tension.h`
-- `adapt_wavelet_limited_v2.h`
 
 ## Author
 
@@ -61,11 +59,10 @@ and surface tension.
 
 #include "grid/octree.h"
 #include "navier-stokes/centered.h"
-#define FILTERED
+#define FILTERED 1
 #include "two-phase.h"
 #include "navier-stokes/conserving.h"
 #include "tension.h"
-#include "adapt_wavelet_limited_v2.h"
 
 /**
 ## Grid and Domain Parameters
@@ -74,7 +71,7 @@ and surface tension.
 - `Ldomain`: Physical size of the cubic domain (normalized units)
 */
 
-#define MINlevel 5                    // minimum refinement level
+#define MINlevel 2                    // minimum refinement level
 #define Ldomain 4                     // dimension of the domain
 
 /**
@@ -130,31 +127,18 @@ u.r[bottom] = dirichlet(0.);
 f[bottom] = dirichlet(0.);
 
 /**
-## Refinement Region Function
-
-Returns the target refinement level for a given spatial location `(x, y, z)`.
-Higher levels near the coalescence plane and substrate capture thin films and
-contact line dynamics.
-*/
-int refRegion(double x, double y, double z){
-  return (y < 1.5 && x < 1.5 && z < 1e-2) ? MAXlevel+1:  // coalescence plane
-         (y < -0.999 && x < 1.5 && z < 2.5)? MAXlevel+1: // near substrate
-         (y < 1.5 && x < 2e0 && z < 3e0)? MAXlevel:      // inside drop
-         MAXlevel-1;                                      // everywhere else
-}
-
-/**
 ## Adaptive Mesh Refinement Event
 
 Triggered every iteration to adapt the mesh based on flow features: volume
-fraction gradients, interface curvature, and velocity gradients.
+fraction gradients, interface curvature, and velocity gradients. Refinement is
+uniform up to `MAXlevel` via the standard `adapt_wavelet`.
 */
 event adapt(i++) {
   scalar KAPPA[];
   curvature(f, KAPPA);
-  adapt_wavelet_limited ((scalar *){f, KAPPA, u.x, u.y, u.z},
+  adapt_wavelet ((scalar *){f, KAPPA, u.x, u.y, u.z},
      (double[]){fErr, KErr, VelErr, VelErr, VelErr},
-      refRegion, minlevel=MINlevel);
+      maxlevel=MAXlevel, minlevel=MINlevel);
 }
 
 /**
@@ -181,7 +165,7 @@ event logWriting (t = 0; t += tsnap2; t <= tmax+tsnap) {
 
   // Compute volume-averaged quantities
   double ke = 0., wt = 0., Vcm = 0.;
-  foreach (reduction(+:ke), reduction(+:Vcm), reduction(+:wt)){
+  foreach (reduction(+:ke) reduction(+:Vcm) reduction(+:wt)){
     ke += 0.5*(sq(u.x[]) + sq(u.y[]) + sq(u.z[]))*clamp(f[], 0., 1.)*cube(Delta);
     Vcm += clamp(f[], 0., 1.)*u.y[]*cube(Delta);
     wt += clamp(f[], 0., 1.)*cube(Delta);
