@@ -178,6 +178,10 @@ fi
 
 cd "$CASE_DIR"
 
+# Stage entry-point sources locally: qcc segfaults on ../ source paths.
+cp ../jumpingDrops_init.c ../jumpingDrops_main.c ./ 2>/dev/null || true
+ln -sf ../InitialCondition.stl ./InitialCondition.stl 2>/dev/null || true
+
 echo "========================================="
 echo "Compilation"
 echo "========================================="
@@ -189,13 +193,13 @@ if [ "$PHASE_MODE" = "init" ] || [ "$PHASE_MODE" = "both" ]; then
   fi
 
   if [ "$VERBOSE" -eq 1 ]; then
-    echo "Command: qcc -I../../src-local -O2 -Wall -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} ../jumpingDrops_init.c -o jumpingDrops_init -lm"
+    echo "Command: qcc -I../../src-local -O2 -Wall -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} jumpingDrops_init.c -o jumpingDrops_init -lm"
   fi
 
   qcc -I../../src-local \
     -O2 -Wall -disable-dimensions \
     ${DEBUG_FLAGS} ${QCC_FLAGS} \
-    ../jumpingDrops_init.c -o jumpingDrops_init -lm
+    jumpingDrops_init.c -o jumpingDrops_init -lm
 fi
 
 if [ "$PHASE_MODE" = "main" ] || [ "$PHASE_MODE" = "both" ]; then
@@ -207,32 +211,32 @@ if [ "$PHASE_MODE" = "main" ] || [ "$PHASE_MODE" = "both" ]; then
   if [ "$MPI_ENABLED" -eq 1 ]; then
     if [ "$(uname -s)" = "Darwin" ]; then
       if [ "$VERBOSE" -eq 1 ]; then
-        echo "Command: CC99='mpicc -std=c99' qcc -I../../src-local -Wall -O2 -D_MPI=1 -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} ../jumpingDrops_main.c -o jumpingDrops_main -lm"
+        echo "Command: CC99='mpicc -std=c99' qcc -I../../src-local -Wall -O2 -D_MPI=1 -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} jumpingDrops_main.c -o jumpingDrops_main -lm"
       fi
 
       CC99='mpicc -std=c99' qcc -I../../src-local \
         -Wall -O2 -D_MPI=1 -disable-dimensions \
         ${DEBUG_FLAGS} ${QCC_FLAGS} \
-        ../jumpingDrops_main.c -o jumpingDrops_main -lm
+        jumpingDrops_main.c -o jumpingDrops_main -lm
     else
       if [ "$VERBOSE" -eq 1 ]; then
-        echo "Command: CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc -I../../src-local -Wall -O2 -D_MPI=1 -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} ../jumpingDrops_main.c -o jumpingDrops_main -lm"
+        echo "Command: CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc -I../../src-local -Wall -O2 -D_MPI=1 -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} jumpingDrops_main.c -o jumpingDrops_main -lm"
       fi
 
       CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc -I../../src-local \
         -Wall -O2 -D_MPI=1 -disable-dimensions \
         ${DEBUG_FLAGS} ${QCC_FLAGS} \
-        ../jumpingDrops_main.c -o jumpingDrops_main -lm
+        jumpingDrops_main.c -o jumpingDrops_main -lm
     fi
   else
     if [ "$VERBOSE" -eq 1 ]; then
-      echo "Command: qcc -I../../src-local -O2 -Wall -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} ../jumpingDrops_main.c -o jumpingDrops_main -lm"
+      echo "Command: qcc -I../../src-local -O2 -Wall -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} jumpingDrops_main.c -o jumpingDrops_main -lm"
     fi
 
     qcc -I../../src-local \
       -O2 -Wall -disable-dimensions \
       ${DEBUG_FLAGS} ${QCC_FLAGS} \
-      ../jumpingDrops_main.c -o jumpingDrops_main -lm
+      jumpingDrops_main.c -o jumpingDrops_main -lm
   fi
 fi
 
