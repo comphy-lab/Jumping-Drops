@@ -1,9 +1,7 @@
 #!/bin/bash
 
-# Example Basilisk environment configuration
-# You can generate a real .project_config by running:
-#   ./reset_install_requirements.sh
-# If Basilisk lives elsewhere, edit BASILISK below.
+# Example Basilisk environment configuration.
+# Copy this file to .project_config and edit BASILISK if the local path differs.
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export BASILISK="${PROJECT_ROOT}/basilisk/src"

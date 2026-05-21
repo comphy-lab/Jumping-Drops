@@ -171,7 +171,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="base-url" content="..">
-  <title>simulationCases/jumpingDrops_main.c | Jumping-Drops</title>
+  <title>simulationCases/jumpingDrops_main.c | Jumping Drops</title>
 
   <!-- Critical CSS for fastest paint -->
   <style>
@@ -205,7 +205,7 @@
   <meta name="description" content="Runs the full drop dynamics simulation from the initial condition created by the initialization phase. This version is MPI-compatible for parallel execution.">
   <meta name="author" content="CoMPhy Lab">
   <meta name="robots" content="index, follow">
-  <meta name="keywords" content="_mpi, jumpingdrops, jumpingdrops_common.h, main">
+  <meta name="keywords" content="_mpi, jumpingdrops, jumpingdrops_common.h, main, params.h">
   <meta name="msapplication-TileColor" content="#da532c">
   <meta name="theme-color" content="#ffffff">
   <meta name="apple-mobile-web-app-title" content="CoMPhy Lab">
@@ -441,23 +441,15 @@ window.baseDomain = "https://comphy-lab.org/Jumping-Drops";
                 execution.</p>
                 <h2 id="usage">Usage</h2>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./jumpingDrops_main</span> tmax Oh Bo MAXlevel</span></code></pre></div></div>
-                <p>Example (serial):</p>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./jumpingDrops_main</span> 10.0 0.001 0.001</span></code></pre></div></div>
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./jumpingDrops_main</span> [case.params]</span></code></pre></div></div>
                 <p>Example (parallel with MPI):</p>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mpirun</span> <span class="at">-np</span> 8 ./jumpingDrops_main 10.0 0.001 0.001</span></code></pre></div></div>
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mpirun</span> <span class="at">-np</span> 8 ./jumpingDrops_main case.params</span></code></pre></div></div>
                 <h2 id="inputs">Inputs</h2>
                 <ul>
-                <li><code>tmax</code>: Maximum simulation time
-                (dimensionless)</li>
-                <li><code>Oh</code>: Ohnesorge number (dimensionless
-                viscosity)</li>
-                <li><code>Bo</code>: Bond number (dimensionless
-                gravity)</li>
-                <li><code>MAXlevel</code>: Maximum AMR refinement
-                level</li>
+                <li><code>case.params</code>: runtime parameter file
+                with <code>tmax</code>, <code>Oh</code>,
+                <code>Bo</code>, and <code>MAXlevel</code></li>
                 <li><code>dump</code> or <code>dumpInit</code>: Binary
                 dump file from initialization phase (must exist)</li>
                 </ul>
@@ -484,88 +476,84 @@ window.baseDomain = "https://comphy-lab.org/Jumping-Drops";
                 CoMPhy Lab, Durham University<br />
                 Last updated: 2026-01-30</p>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode c"><code class="sourceCode c"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#define MPI_MODE</span></span></code></pre></div></div>
+                class="sourceCode c"><code class="sourceCode c"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#define MPI_MODE</span></span></code></pre></div></div>
                 <h2 id="common-definitions">Common Definitions</h2>
                 <p>Includes shared constants, tolerances, and helper
                 functions.</p>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode c"><code class="sourceCode c"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><a href="../src-local/jumpingDrops_common.h.html" title="Link to local documentation for jumpingDrops_common.h"><span class="im">"jumpingDrops_common.h"</span></a><span class="pp"></span></span></code></pre></div></div>
+                class="sourceCode c"><code class="sourceCode c"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><a href="../src-local/jumpingDrops_common.h.html" title="Link to local documentation for jumpingDrops_common.h"><span class="im">"jumpingDrops_common.h"</span></a></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><a href="../src-local/params.h.html" title="Link to local documentation for params.h"><span class="im">"params.h"</span></a><span class="pp"></span></span></code></pre></div></div>
                 <h2 id="global-variable-definitions">Global Variable
                 Definitions</h2>
                 <p>Runtime parameters set from command-line
                 arguments.</p>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode c"><code class="sourceCode c"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="dt">double</span> tmax<span class="op">,</span> Oh<span class="op">,</span> Bo<span class="op">;</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> MAXlevel<span class="op">;</span></span></code></pre></div></div>
+                class="sourceCode c"><code class="sourceCode c"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="dt">double</span> tmax<span class="op">,</span> Oh<span class="op">,</span> Bo<span class="op">;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> MAXlevel<span class="op">;</span></span></code></pre></div></div>
                 <h2 id="main-function">Main Function</h2>
-                <p>Parses arguments, sets fluid properties, and starts
-                the main simulation run.</p>
+                <p>Loads runtime parameters from
+                <code>case.params</code>, sets fluid properties, and
+                starts the main simulation run.</p>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode c"><code class="sourceCode c"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span> <span class="op">*</span>argv<span class="op">[])</span> <span class="op">{</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Parse command-line arguments</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">// argv[1]: Maximum simulation time (tmax)</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="co">// argv[2]: Ohnesorge number (Oh)</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">// argv[3]: Bond number (Bo)</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="co">// argv[4]: Maximum refinement level (MAXlevel)</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> <span class="op">(</span>argc <span class="op">&lt;</span> <span class="dv">5</span><span class="op">)</span> <span class="op">{</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;ERROR: Insufficient arguments</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Usage: %s tmax Oh Bo MAXlevel</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> argv<span class="op">[</span><span class="dv">0</span><span class="op">]);</span></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Example: %s 10.0 0.001 0.001</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> argv<span class="op">[</span><span class="dv">0</span><span class="op">]);</span></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">1</span><span class="op">;</span></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  tmax <span class="op">=</span> atof<span class="op">(</span>argv<span class="op">[</span><span class="dv">1</span><span class="op">]);</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  Oh <span class="op">=</span> atof<span class="op">(</span>argv<span class="op">[</span><span class="dv">2</span><span class="op">]);</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  Bo <span class="op">=</span> atof<span class="op">(</span>argv<span class="op">[</span><span class="dv">3</span><span class="op">]);</span></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  MAXlevel <span class="op">=</span> atoi<span class="op">(</span>argv<span class="op">[</span><span class="dv">4</span><span class="op">]);</span></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Initialize grid</span></span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  init_grid <span class="op">(</span><span class="dv">1</span> <span class="op">&lt;&lt;</span> MINlevel<span class="op">);</span></span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>  L0 <span class="op">=</span> Ldomain<span class="op">;</span></span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;==============================================</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Jumping drops - Main Simulation Phase</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;==============================================</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;tmax = %g</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> tmax<span class="op">);</span></span>
-<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Oh = %g</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> Oh<span class="op">);</span></span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Bo = %g</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> Bo<span class="op">);</span></span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;MAXlevel = %d</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> MAXlevel<span class="op">);</span></span>
-<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a><span class="pp">#ifdef _MPI</span></span>
-<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;MPI enabled: %d processes</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> npe<span class="op">());</span></span>
-<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="pp">#endif</span></span>
-<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;==============================================</span><span class="sc">\n\n</span><span class="st">&quot;</span><span class="op">);</span></span>
-<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Set fluid properties</span></span>
-<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>  rho1 <span class="op">=</span> <span class="fl">1.0</span><span class="op">;</span>                         <span class="co">// liquid density (normalized)</span></span>
-<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>  mu1 <span class="op">=</span> Oh<span class="op">;</span>                           <span class="co">// liquid viscosity</span></span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>  rho2 <span class="op">=</span> Rho21<span class="op">;</span>                       <span class="co">// gas density</span></span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>  mu2 <span class="op">=</span> Mu21<span class="op">*</span>Oh<span class="op">;</span>                      <span class="co">// gas viscosity (consistent with init)</span></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>  f<span class="op">.</span>sigma <span class="op">=</span> <span class="fl">1.0</span><span class="op">;</span>                      <span class="co">// surface tension (normalized)</span></span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>  G<span class="op">.</span>y <span class="op">=</span> <span class="op">-</span>Bo<span class="op">;</span>                          <span class="co">// gravity (CRITICAL FIX: was missing!)</span></span>
-<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Create intermediate directory for snapshots</span></span>
-<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>  <span class="dt">char</span> comm<span class="op">[</span><span class="dv">80</span><span class="op">];</span></span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>  sprintf <span class="op">(</span>comm<span class="op">,</span> <span class="st">&quot;mkdir -p intermediate&quot;</span><span class="op">);</span></span>
-<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>  system<span class="op">(</span>comm<span class="op">);</span></span>
-<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Start simulation</span></span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>  run<span class="op">();</span></span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div></div>
+                class="sourceCode c"><code class="sourceCode c"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span> <span class="op">*</span>argv<span class="op">[])</span> <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> <span class="op">(!</span>params_init_from_argv<span class="op">(</span>argc<span class="op">,</span> argv<span class="op">))</span> <span class="op">{</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Usage: %s [case.params]</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> argv<span class="op">[</span><span class="dv">0</span><span class="op">]);</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  tmax <span class="op">=</span> param_double<span class="op">(</span><span class="st">&quot;tmax&quot;</span><span class="op">,</span> <span class="fl">10.0</span><span class="op">);</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  Oh <span class="op">=</span> param_double<span class="op">(</span><span class="st">&quot;Oh&quot;</span><span class="op">,</span> <span class="fl">1e-3</span><span class="op">);</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  Bo <span class="op">=</span> param_double<span class="op">(</span><span class="st">&quot;Bo&quot;</span><span class="op">,</span> <span class="fl">1e-3</span><span class="op">);</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  MAXlevel <span class="op">=</span> param_int<span class="op">(</span><span class="st">&quot;MAXlevel&quot;</span><span class="op">,</span> <span class="dv">10</span><span class="op">);</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Initialize grid</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  init_grid <span class="op">(</span><span class="dv">1</span> <span class="op">&lt;&lt;</span> MINlevel<span class="op">);</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  L0 <span class="op">=</span> Ldomain<span class="op">;</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;==============================================</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Jumping drops - Main Simulation Phase</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;==============================================</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Parameter file = %s</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> params_source_path<span class="op">());</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;tmax = %g</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> tmax<span class="op">);</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Oh = %g</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> Oh<span class="op">);</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Bo = %g</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> Bo<span class="op">);</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;MAXlevel = %d</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> MAXlevel<span class="op">);</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="pp">#ifdef _MPI</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;MPI enabled: %d processes</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">,</span> npe<span class="op">());</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="pp">#endif</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;==============================================</span><span class="sc">\n\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Set fluid properties</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>  rho1 <span class="op">=</span> <span class="fl">1.0</span><span class="op">;</span>                         <span class="co">// liquid density (normalized)</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>  mu1 <span class="op">=</span> Oh<span class="op">;</span>                           <span class="co">// liquid viscosity</span></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>  rho2 <span class="op">=</span> Rho21<span class="op">;</span>                       <span class="co">// gas density</span></span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>  mu2 <span class="op">=</span> Mu21<span class="op">*</span>Oh<span class="op">;</span>                      <span class="co">// gas viscosity (consistent with init)</span></span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>  f<span class="op">.</span>sigma <span class="op">=</span> <span class="fl">1.0</span><span class="op">;</span>                      <span class="co">// surface tension (normalized)</span></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>  G<span class="op">.</span>y <span class="op">=</span> <span class="op">-</span>Bo<span class="op">;</span>                          <span class="co">// gravity (CRITICAL FIX: was missing!)</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Create intermediate directory for snapshots</span></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>  <span class="dt">char</span> comm<span class="op">[</span><span class="dv">80</span><span class="op">];</span></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>  sprintf <span class="op">(</span>comm<span class="op">,</span> <span class="st">&quot;mkdir -p intermediate&quot;</span><span class="op">);</span></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>  system<span class="op">(</span>comm<span class="op">);</span></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Start simulation</span></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>  run<span class="op">();</span></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div></div>
                 <h2 id="initialization-event">Initialization Event</h2>
                 <p>Restores simulation state from <code>dump</code> or
                 <code>dumpInit</code> file created by the initialization
                 phase. Fails with an error message if no dump file is
                 found.</p>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode c"><code class="sourceCode c"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>event init<span class="op">(</span>t <span class="op">=</span> <span class="dv">0</span><span class="op">){</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span><span class="op">(!</span>restore <span class="op">(</span>file <span class="op">=</span> <span class="st">&quot;dump&quot;</span><span class="op">)){</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;ERROR: Cannot restore from dump file</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Make sure dumpInit exists from initialization phase</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Run jumpingDrops_init.c first to create initial condition</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">1</span><span class="op">;</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Successfully restored from dump file</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div></div>
+                class="sourceCode c"><code class="sourceCode c"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>event init<span class="op">(</span>t <span class="op">=</span> <span class="dv">0</span><span class="op">){</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span><span class="op">(!</span>restore <span class="op">(</span>file <span class="op">=</span> <span class="st">&quot;dump&quot;</span><span class="op">)){</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;ERROR: Cannot restore from dump file</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Make sure dumpInit exists from initialization phase</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Run jumpingDrops_init.c first to create initial condition</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  fprintf<span class="op">(</span>ferr<span class="op">,</span> <span class="st">&quot;Successfully restored from dump file</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div></div>
             </div>
         </main>
 

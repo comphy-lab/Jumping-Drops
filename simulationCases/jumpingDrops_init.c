@@ -7,20 +7,15 @@ for continuation with the main simulation phase.
 ## Usage
 
 ```bash
-./jumpingDrops_init Oh Bo MAXlevel
+./jumpingDrops_init [case.params]
 ```
 
-Example:
-
-```bash
-./jumpingDrops_init 0.001 0.001 10
-```
+If no file is passed, the executable falls back to `case.params` in the
+working directory.
 
 ## Inputs
 
-- `Oh`: Ohnesorge number (dimensionless viscosity)
-- `Bo`: Bond number (dimensionless gravity)
-- `MAXlevel`: Maximum AMR refinement level
+- `case.params`: runtime parameter file with `Oh`, `Bo`, and `MAXlevel`
 - `InitialCondition.stl`: STL geometry file (must exist in working directory)
 
 ## Outputs
@@ -37,8 +32,8 @@ environment for the main simulation.
 
 ## Author
 
-Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)  
-CoMPhy Lab, Durham University  
+Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)
+CoMPhy Lab, Durham University
 Last updated: 2026-01-30
 
 ## Phase-Specific Includes
@@ -54,6 +49,7 @@ Includes shared constants, tolerances, and helper functions.
 */
 
 #include "jumpingDrops_common.h"
+#include "params.h"
 
 /**
 ## Global Variable Definitions
@@ -67,24 +63,19 @@ int MAXlevel;
 /**
 ## Main Function
 
-Parses arguments, sets fluid properties, and starts the initialization run.
+Loads runtime parameters from `case.params`, sets fluid properties, and starts
+the initialization run.
 */
 
 int main(int argc, char *argv[]) {
-  // Parse command-line arguments
-  // argv[1]: Ohnesorge number (Oh)
-  // argv[2]: Bond number (Bo)
-  // argv[3]: Maximum refinement level (MAXlevel)
-  if (argc < 4) {
-    fprintf(ferr, "ERROR: Insufficient arguments\n");
-    fprintf(ferr, "Usage: %s Oh Bo MAXlevel\n", argv[0]);
-    fprintf(ferr, "Example: %s 0.001 0.001 10\n", argv[0]);
+  if (!params_init_from_argv(argc, argv)) {
+    fprintf(ferr, "Usage: %s [case.params]\n", argv[0]);
     return 1;
   }
 
-  Oh = atof(argv[1]);
-  Bo = atof(argv[2]);
-  MAXlevel = atoi(argv[3]);
+  Oh = param_double("Oh", 1e-3);
+  Bo = param_double("Bo", 1e-3);
+  MAXlevel = param_int("MAXlevel", 10);
 
   // Initialization phase: short run just to create dump
   tmax = tsnap;
@@ -96,6 +87,7 @@ int main(int argc, char *argv[]) {
   fprintf(ferr, "==============================================\n");
   fprintf(ferr, "Jumping Drops - Initialization Phase\n");
   fprintf(ferr, "==============================================\n");
+  fprintf(ferr, "Parameter file = %s\n", params_source_path());
   fprintf(ferr, "tmax = %g (initialization run)\n", tmax);
   fprintf(ferr, "Oh = %g\n", Oh);
   fprintf(ferr, "Bo = %g\n", Bo);

@@ -1,3 +1,6 @@
 CLAUDE.md
 .project_config
 basilisk/
+.comphy-basilisk/
+.sweep_tmp_*/
+.DS_Store

@@ -171,7 +171,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="base-url" content="..">
-  <title>Jumping-Drops | Jumping-Drops</title>
+  <title>Jumping Drops | Jumping Drops</title>
   
   <!-- Critical CSS for fastest paint -->
   <style>
@@ -427,510 +427,196 @@ window.baseDomain = "https://comphy-lab.org/Jumping-Drops";
                                 
                                 
                 
-                <h1 id="jumping-drops">Jumping-Drops</h1>
-                <p>Jumping drops Basilisk simulation with a two-phase
-                workflow: initialization (STL geometry -&gt;
-                <code>dumpInit</code>) and a main MPI-compatible
-                run.</p>
+                <h1 id="jumping-drops">Jumping Drops</h1>
+                <p>Jumping Drops is a Basilisk two-phase drop-impact
+                workflow split into two entry points:</p>
+                <ul>
+                <li><code>simulationCases/jumpingDrops_init.c</code>
+                creates <code>dumpInit</code> from STL geometry in
+                serial.</li>
+                <li><code>simulationCases/jumpingDrops_main.c</code>
+                restores <code>dump</code>/<code>dumpInit</code> and
+                runs the MPI-ready main simulation.</li>
+                </ul>
+                <p>The standardized runtime contract is
+                <code>case.params</code>: shell scripts generate and
+                validate parameter files, and the Basilisk executables
+                read the same file directly at runtime.</p>
                 <h2 id="requirements">Requirements</h2>
                 <ul>
-                <li>Basilisk (<code>qcc</code> on
-                <code>PATH</code>)</li>
-                <li>MPI (optional, for parallel main phase)</li>
-                <li>macOS or Linux</li>
+                <li>Basilisk with <code>qcc</code> available on
+                <code>PATH</code></li>
+                <li>MPI tools (<code>mpicc</code>, <code>mpirun</code>,
+                <code>srun</code>) for parallel main runs</li>
+                <li>A local <code>.project_config</code> file</li>
                 </ul>
-                <h2 id="basilisk-required">Basilisk (Required)</h2>
-                <p>First-time install (or reinstall):</p>
+                <p>Setup the local Basilisk path by copying and editing
+                the example if needed:</p>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-sL</span> https://raw.githubusercontent.com/comphy-lab/basilisk-C/main/reset_install_basilisk-ref-locked.sh <span class="kw">|</span> <span class="fu">bash</span> <span class="at">-s</span> <span class="at">--</span> <span class="at">--ref</span><span class="op">=</span>v2026-01-29 <span class="at">--hard</span></span></code></pre></div></div>
-                <p>Subsequent runs (reuses existing
-                <code>basilisk/</code> if same ref):</p>
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cp</span> .project_config.example .project_config</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .project_config</span></code></pre></div></div>
+                <p>The vendored <code>basilisk/</code> directory is
+                treated as a local dependency and is ignored by git.</p>
+                <h2 id="quick-start">Quick Start</h2>
                 <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-sL</span> https://raw.githubusercontent.com/comphy-lab/basilisk-C/main/reset_install_basilisk-ref-locked.sh <span class="kw">|</span> <span class="fu">bash</span> <span class="at">-s</span> <span class="at">--</span> <span class="at">--ref</span><span class="op">=</span>v2026-01-29</span></code></pre></div></div>
-                <p>Load the environment before running the scripts:</p>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .project_config</span></code></pre></div></div>
-                <blockquote>
-                <p>Note: Replace <code>v2026-01-29</code> with the
-                latest release tag from
-                https://github.com/comphy-lab/basilisk-C/releases.</p>
-                </blockquote>
-                <h2 id="quick-start">Quick start</h2>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Full workflow (init + main)</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> default.params</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Init only (STL -&gt; dumpInit)</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--init-only</span> default.params</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Main only (MPI)</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--main-only</span> <span class="at">--mpi</span> <span class="at">--cores</span> 8 default.params</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Parameter sweep</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ex">./runParameterSweep.sh</span> sweep.params</span></code></pre></div></div>
-                <h2 id="overview">Overview</h2>
-                <p>This codebase has been refactored from two monolithic
-                files into a modular workflow with a clean separation
-                between initialization and the MPI-compatible main
-                simulation.</p>
-                <h3 id="deprecated-do-not-use">Deprecated (do not
-                use)</h3>
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Full workflow for one case</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> default.params</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialization only</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--init-only</span> default.params</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Main phase only with MPI</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--main-only</span> <span class="at">--mpi</span> <span class="at">--cores</span> 8 default.params</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Deterministic parameter sweep</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="ex">./runParameterSweep.sh</span> sweep.params</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Inspect generated sweep cases without running them</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="ex">./runParameterSweep.sh</span> <span class="at">--dry-run</span> sweep.params</span></code></pre></div></div>
+                <h2 id="runtime-parameters">Runtime Parameters</h2>
+                <p>Parameter files use <code>key=value</code> lines with
+                optional <code>#</code> comments.</p>
+                <p>Required single-case keys:</p>
                 <ul>
-                <li><code>simulationCases/JumpingDrops_legacy.c</code> -
-                local initialization with STL</li>
-                <li><code>simulationCases/JumpingDrops_Snellius_legacy.c</code>
-                - HPC version (missing gravity bug)</li>
+                <li><code>CaseNo</code></li>
+                <li><code>Oh</code></li>
+                <li><code>Bo</code></li>
+                <li><code>MAXlevel</code></li>
+                <li><code>tmax</code></li>
                 </ul>
-                <h3 id="current-sources">Current sources</h3>
+                <p>The shared parser layers are:</p>
                 <ul>
-                <li><code>src-local/jumpingDrops_common.h</code> -
-                shared definitions, tolerances, boundary conditions, and
-                helper functions (<code>refRegion()</code>,
-                <code>adapt()</code>, <code>writingFiles()</code>,
-                <code>logWriting()</code>), with MPI-aware logging via
-                <code>MPI_MODE</code></li>
-                <li><code>simulationCases/jumpingDrops_init.c</code> -
-                init phase (serial only; uses <code>distance.h</code>
-                and <code>reduced.h</code>) that writes
-                <code>dumpInit</code></li>
-                <li><code>simulationCases/jumpingDrops_main.c</code> -
-                main simulation (MPI-ready; no <code>distance.h</code>)
-                that restores from
-                <code>dump</code>/<code>dumpInit</code></li>
-                <li><code>src-local/parse_params.sh</code> - parameter
-                file parsing helpers</li>
+                <li><code>src-local/parse_params.sh</code> for shell
+                runners and sweep generation</li>
+                <li><code>src-local/parse_params.h</code> for low-level
+                C parsing</li>
+                <li><code>src-local/params.h</code> for typed C
+                accessors with defaults and warnings</li>
                 </ul>
-                <h2 id="file-execution-summary">File execution
-                summary</h2>
-                <table style="width:100%;">
-                <colgroup>
-                <col style="width: 17%" />
-                <col style="width: 25%" />
-                <col style="width: 14%" />
-                <col style="width: 20%" />
-                <col style="width: 22%" />
-                </colgroup>
-                <thead>
-                <tr class="header">
-                <th>File</th>
-                <th>Purpose</th>
-                <th>MPI</th>
-                <th>Input</th>
-                <th>Output</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr class="odd">
-                <td><code>simulationCases/jumpingDrops_init.c</code></td>
-                <td>Create initial condition</td>
-                <td>No (serial only)</td>
-                <td>STL file</td>
-                <td><code>dumpInit</code></td>
-                </tr>
-                <tr class="even">
-                <td><code>simulationCases/jumpingDrops_main.c</code></td>
-                <td>Run simulation</td>
-                <td>Yes</td>
-                <td><code>dump</code>/<code>dumpInit</code></td>
-                <td>snapshots, log</td>
-                </tr>
-                </tbody>
-                </table>
-                <h2 id="parameters">Parameters</h2>
+                <p><code>runSimulation.sh</code> copies the chosen input
+                file into
+                <code>simulationCases/&lt;CaseNo&gt;/case.params</code>,
+                then runs the compiled executable as:</p>
+                <div class="code-block-container"><div class="code-block-container"><pre
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./jumpingDrops_init</span> case.params</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./jumpingDrops_main</span> case.params</span></code></pre></div></div>
+                <p>Sweep files define:</p>
                 <ul>
-                <li>Parameter files are <code>key=value</code>
-                lines.</li>
-                <li>Required keys: <code>CaseNo</code>, <code>Oh</code>,
-                <code>Bo</code>, <code>MAXlevel</code>,
-                <code>tmax</code>.</li>
-                <li>Sweep files define <code>BASE_CONFIG</code>,
-                <code>CASE_START</code>, <code>CASE_END</code>, and
-                <code>SWEEP_*</code> values.</li>
+                <li><code>BASE_CONFIG</code></li>
+                <li><code>CASE_START</code></li>
+                <li><code>CASE_END</code></li>
+                <li>one or more <code>SWEEP_*</code> variables</li>
                 </ul>
-                <h3 id="parameter-file-template-required-keys">Parameter
-                file template (required keys)</h3>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="va">CaseNo</span><span class="op">=</span>1000              <span class="co"># 4-digit case number (1000-9999)</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="va">Oh</span><span class="op">=</span>0.001                 <span class="co"># Ohnesorge number</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="va">Bo</span><span class="op">=</span>0.001                 <span class="co"># Bond number</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="va">MAXlevel</span><span class="op">=</span>10              <span class="co"># Maximum refinement level</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="va">tmax</span><span class="op">=</span>10.0                <span class="co"># Maximum simulation time (main phase only)</span></span></code></pre></div></div>
-                <h3 id="example-default.params">Example:
-                <code>default.params</code></h3>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Jumping Drops Simulation Parameters</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="va">CaseNo</span><span class="op">=</span>1000</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="va">Oh</span><span class="op">=</span>0.001</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="va">Bo</span><span class="op">=</span>0.001</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="va">MAXlevel</span><span class="op">=</span>10</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="va">tmax</span><span class="op">=</span>10.0</span></code></pre></div></div>
-                <h2 id="script-options">Script options</h2>
-                <h3 id="runsimulation.sh">runSimulation.sh</h3>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">--init-only</span>       <span class="co"># Init phase only</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">--main-only</span>       <span class="co"># Main phase only</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">--mpi</span>             <span class="co"># Enable MPI</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="ex">--cores</span> N         <span class="co"># Number of MPI cores (default: 4)</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="ex">--compile-only</span>    <span class="co"># Compile but don&#39;t run</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="ex">--debug</span>           <span class="co"># Debug mode (-g -DTRASH=1)</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="ex">--verbose</span>         <span class="co"># Verbose output</span></span></code></pre></div></div>
-                <h3 id="runparametersweep.sh">runParameterSweep.sh</h3>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">--skip-init</span>       <span class="co"># Skip init for all cases</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">--dry-run</span>         <span class="co"># Show combinations, don&#39;t run</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="ex">--mpi</span>             <span class="co"># Enable MPI for all cases</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="ex">--cores</span> N         <span class="co"># MPI cores per case</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="ex">--compile-only</span>    <span class="co"># Compile but don&#39;t run</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="ex">--verbose</span>         <span class="co"># Verbose output</span></span></code></pre></div></div>
-                <h2 id="common-workflows">Common workflows</h2>
-                <h3 id="single-case-development">Single case
-                development</h3>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># First time</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> case.params</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Subsequent runs (skip init)</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--main-only</span> case.params</span></code></pre></div></div>
-                <h3 id="parameter-sweep">Parameter sweep</h3>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># First sweep (auto-runs init if needed)</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./runParameterSweep.sh</span> sweep.params</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Re-run after changes (skip init)</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="ex">./runParameterSweep.sh</span> <span class="at">--skip-init</span> sweep.params</span></code></pre></div></div>
-                <h3 id="hpc-workflow-snellius">HPC workflow
-                (Snellius)</h3>
-                <p>Step 1: Local - create initial conditions</p>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> case <span class="kw">in</span> 1000 1001 1002<span class="kw">;</span> <span class="cf">do</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="ex">./runSimulation.sh</span> <span class="at">--init-only</span> <span class="st">&quot;simulationCases/</span><span class="va">${case}</span><span class="st">/case.params&quot;</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div></div>
-                <p>Step 2: Local - transfer to HPC</p>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> case <span class="kw">in</span> 1000 1001 1002<span class="kw">;</span> <span class="cf">do</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scp</span> <span class="st">&quot;simulationCases/</span><span class="va">${case}</span><span class="st">/dumpInit&quot;</span> <span class="dt">\</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;hpc:Drop-Impact/simulationCases/</span><span class="va">${case}</span><span class="st">/&quot;</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div></div>
-                <p>Or transfer all at once:</p>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rsync</span> <span class="at">-av</span> <span class="at">--include</span><span class="op">=</span><span class="st">&#39;**/dumpInit&#39;</span> <span class="at">--include</span><span class="op">=</span><span class="st">&#39;*/&#39;</span> <span class="at">--exclude</span><span class="op">=</span><span class="st">&#39;*&#39;</span> <span class="dt">\</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    simulationCases/ hpc:Drop-Impact/simulationCases/</span></code></pre></div></div>
-                <p>Step 3: HPC - run sweep</p>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">sbatch</span> runSweepSnellius.sbatch</span></code></pre></div></div>
-                <h2 id="what-you-need-on-hpc">What you need on HPC</h2>
-                <p>Minimum files per case directory:</p>
-                <div class="code-block-container"><pre><code>simulationCases/&lt;CaseNo&gt;/
-├── dumpInit              # From local init phase
-└── case.params           # Generated by sweep</code></pre></div>
-                <p>Auto-created by the sbatch script:</p>
-                <div class="code-block-container"><pre><code>simulationCases/&lt;CaseNo&gt;/
-├── jumpingDrops_main.c   # Copied by script
-├── jumpingDrops_main     # Compiled executable
-└── intermediate/         # Created if needed</code></pre></div>
-                <p>Shared header used during compilation:</p>
-                <div class="code-block-container"><pre><code>src-local/jumpingDrops_common.h</code></pre></div>
-                <h2 id="quick-troubleshooting">Quick
-                troubleshooting</h2>
-                <table>
-                <colgroup>
-                <col style="width: 33%" />
-                <col style="width: 38%" />
-                <col style="width: 27%" />
-                </colgroup>
-                <thead>
-                <tr class="header">
-                <th>Error</th>
-                <th>Cause</th>
-                <th>Fix</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr class="odd">
-                <td>“dump file not found”</td>
-                <td>No initial condition</td>
-                <td>Run <code>--init-only</code> first</td>
-                </tr>
-                <tr class="even">
-                <td>“Cannot restore dump”</td>
-                <td>Corrupted dump</td>
-                <td>Re-run init phase</td>
-                </tr>
-                <tr class="odd">
-                <td>“Source file not found”</td>
-                <td>Missing files on HPC</td>
-                <td>Transfer all new <code>.c/.h</code> files</td>
-                </tr>
-                <tr class="even">
-                <td>Init phase too slow</td>
-                <td>High MAXlevel</td>
-                <td>Expected - only run once</td>
-                </tr>
-                </tbody>
-                </table>
-                <h2 id="critical-fixes-applied">Critical fixes
-                applied</h2>
+                <p><code>runParameterSweep.sh</code> generates one
+                <code>case.params</code> file per combination, enforces
+                exact agreement between the generated combination count
+                and the <code>CASE_START</code>/<code>CASE_END</code>
+                range, and then dispatches each case through
+                <code>runSimulation.sh</code>.</p>
+                <h2 id="hpc-workflow">HPC Workflow</h2>
+                <p><code>runSweepSnellius.sbatch</code> is the main-only
+                HPC runner. The expected workflow is:</p>
                 <ol type="1">
-                <li>Missing gravity: both init and main now set
-                <code>G.y = -Bo</code></li>
-                <li>Error tolerances consistent: <code>fErr=1e-3</code>,
-                <code>KErr=1e-4</code>, <code>VelErr=1e-2</code></li>
-                <li>Gas viscosity consistent:
-                <code>mu2 = Mu21*Oh = 1e-3*Oh</code></li>
-                <li>MPI-aware logging with <code>pid()</code> checks
-                inside <code>logWriting()</code></li>
-                <li>Shared common header for consistent behavior across
-                phases</li>
+                <li>Generate <code>dumpInit</code> locally with
+                <code>./runSimulation.sh --init-only ...</code></li>
+                <li>Transfer <code>dumpInit</code> into each
+                <code>simulationCases/&lt;CaseNo&gt;/</code> directory
+                on HPC</li>
+                <li>Submit <code>runSweepSnellius.sbatch</code></li>
                 </ol>
-                <h2 id="compilation-details">Compilation details</h2>
-                <h3
-                id="initialization-phase-simulationcasesjumpingdrops_init.c">Initialization
-                phase
-                (<code>simulationCases/jumpingDrops_init.c</code>)</h3>
-                <ul>
-                <li>Compiler: <code>qcc</code> (serial only)</li>
-                <li>Include: <code>distance.h</code>,
-                <code>reduced.h</code></li>
-                <li>Flags:
-                <code>-O2 -Wall -disable-dimensions</code></li>
-                <li>MPI: not supported</li>
-                </ul>
-                <h3
-                id="main-phase-simulationcasesjumpingdrops_main.c">Main
-                phase
-                (<code>simulationCases/jumpingDrops_main.c</code>)</h3>
-                <ul>
-                <li>Compiler: <code>qcc</code> (serial) or
-                <code>mpicc + qcc</code> (parallel)</li>
-                <li>Include: no <code>distance.h</code></li>
-                <li>Flags:
-                <code>-O2 -Wall -disable-dimensions [-D_MPI=1]</code></li>
-                <li>MPI: supported</li>
-                </ul>
-                <h2 id="directory-structure">Directory structure</h2>
+                <p>On Snellius, the batch script delegates to the shared
+                root sweep runner in main-only MPI mode:</p>
+                <div class="code-block-container"><div class="code-block-container"><pre
+                class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> runParameterSweep.sh <span class="at">--skip-init</span> <span class="at">--mpi</span> <span class="at">--cores</span> <span class="st">&quot;</span><span class="va">${SLURM_NTASKS}</span><span class="st">&quot;</span> sweep.params</span></code></pre></div></div>
+                <p>It sets <code>MPI_LAUNCHER=srun</code> and
+                <code>MPI_LAUNCHER_NFLAG=-n</code> so the shared
+                <code>runSimulation.sh</code> runner launches the main
+                executable with <code>srun</code> instead of duplicating
+                a separate HPC-only execution path.</p>
+                <h2 id="repository-structure">Repository Structure</h2>
                 <div class="repository-structure">
                 <ul>
+                <li><strong><a href=".github">.github/</a></strong> - -
+                documentation site assets, build scripts, and
+                workflows</li>
+                <li><strong><a
+                href=".project_config.example.html">.project_config.example</a></strong>
+                - - example Basilisk environment configuration</li>
+                <li><strong><a
+                href="AGENTS.md.html">AGENTS.md</a></strong> - -
+                authoritative project instructions for coding
+                agents</li>
+                <li><strong><a
+                href="README.md.html">README.md</a></strong> - - project
+                overview and workflow documentation</li>
+                <li><strong><a
+                href="default.params.html">default.params</a></strong> -
+                - example single-case runtime parameters</li>
+                <li><strong><a
+                href="runParameterSweep.sh.html">runParameterSweep.sh</a></strong>
+                - - deterministic sweep generator and dispatcher</li>
+                <li><strong><a
+                href="runSimulation.sh.html">runSimulation.sh</a></strong>
+                - - single-case compile/run entry point</li>
+                <li><strong><a
+                href="runSweepSnellius.sbatch.html">runSweepSnellius.sbatch</a></strong>
+                - - Snellius wrapper around the shared MPI main-phase
+                sweep runner</li>
+                <li><strong><a
+                href="simulationCases">simulationCases/</a></strong> - -
+                Basilisk entry points and preserved legacy sources
+                <ul>
+                <li><strong><a
+                href="simulationCases/JumpingDrops_Snellius_legacy.c.html">JumpingDrops_Snellius_legacy.c</a></strong>
+                - - preserved legacy HPC variant</li>
+                <li><strong><a
+                href="simulationCases/JumpingDrops_legacy.c.html">JumpingDrops_legacy.c</a></strong>
+                - - preserved monolithic legacy source</li>
+                <li><strong><a
+                href="simulationCases/jumpingDrops_init.c.html">jumpingDrops_init.c</a></strong>
+                - - STL-to-dumpInit initialization phase</li>
+                <li><strong><a
+                href="simulationCases/jumpingDrops_main.c.html">jumpingDrops_main.c</a></strong>
+                - - MPI-compatible main simulation phase</li>
+                </ul></li>
                 <li><strong><a href="src-local">src-local/</a></strong>
-                -
+                - - shared headers and parameter parsing helpers
                 <ul>
                 <li><strong><a
                 href="src-local/jumpingDrops_common.h.html">jumpingDrops_common.h</a></strong>
-                - # Shared definitions</li>
+                - - shared Basilisk constants, AMR logic, and
+                events</li>
+                <li><strong><a
+                href="src-local/params.h.html">params.h</a></strong> - -
+                typed runtime accessors for C entry points</li>
+                <li><strong><a
+                href="src-local/parse_params.h.html">parse_params.h</a></strong>
+                - - low-level C parser for key=value files</li>
                 <li><strong><a
                 href="src-local/parse_params.sh.html">parse_params.sh</a></strong>
-                - # Parameter parsing helpers</li>
+                - - shared shell parser/update helpers</li>
                 </ul></li>
                 <li><strong><a
-                href="simulationCases">simulationCases/</a></strong> -
-                <ul>
-                <li><strong><a
-                href="simulationCases/jumpingDrops_init.c.html">jumpingDrops_init.c</a></strong>
-                - # Initialization</li>
-                <li><strong><a
-                href="simulationCases/jumpingDrops_main.c.html">jumpingDrops_main.c</a></strong>
-                - # Main simulation</li>
-                <li><strong><a
-                href="simulationCases/JumpingDrops_legacy.c.html">JumpingDrops_legacy.c</a></strong>
-                - # Deprecated</li>
-                <li><strong><a
-                href="simulationCases/JumpingDrops_Snellius_legacy.c.html">JumpingDrops_Snellius_legacy.c</a></strong>
-                - # Deprecated</li>
-                <li><strong><a href="CaseNo"><CaseNo>/</a></strong> - #
-                Case directories</li>
-                <li><strong><a
-                href="simulationCases/case.params.html">case.params</a></strong>
-                - # Parameter file</li>
-                <li><strong><a
-                href="simulationCases/InitialCondition.stl.html">InitialCondition.stl</a></strong>
-                - # STL geometry (for init)</li>
-                <li><strong><a
-                href="simulationCases/dumpInit.html">dumpInit</a></strong>
-                - # Initial condition (from init)</li>
-                <li><strong><a
-                href="simulationCases/dump.html">dump</a></strong> - #
-                Current state</li>
-                <li><strong><a
-                href="simulationCases/restart.html">restart</a></strong>
-                - # Restart file (if exists)</li>
-                <li><strong><a
-                href="simulationCases/log.html">log</a></strong> - #
-                Simulation log</li>
-                <li><strong><a
-                href="intermediate">intermediate/</a></strong> - #
-                Snapshot files</li>
-                <li><strong><a
-                href="simulationCases/snapshot-*.dump.html">snapshot-*.dump</a></strong>
-                -</li>
-                </ul></li>
-                <li><strong><a
-                href="runSimulation.sh.html">runSimulation.sh</a></strong>
-                - # Single case runner</li>
-                <li><strong><a
-                href="runParameterSweep.sh.html">runParameterSweep.sh</a></strong>
-                - # Parameter sweep</li>
-                <li><strong><a
-                href="runSweepSnellius.sbatch.html">runSweepSnellius.sbatch</a></strong>
-                - # HPC sweep</li>
-                <li><strong><a
-                href="default.params.html">default.params</a></strong> -
-                # Example single-case parameters</li>
-                <li><strong><a
-                href="sweep.params.html">sweep.params</a></strong> - #
-                Example sweep configuration</li>
-                <li><strong><a
-                href=".project_config.example.html">.project_config.example</a></strong>
-                - # Basilisk environment template</li>
+                href="sweep.params.html">sweep.params</a></strong> - -
+                example sweep definition</li>
                 </ul>
                 </div>
-                <h2 id="advantages-of-modular-design">Advantages of
-                modular design</h2>
-                <ol type="1">
-                <li>Clean separation: initialization vs main
-                simulation</li>
-                <li>MPI compatibility: no <code>distance.h</code> in
-                parallel code</li>
-                <li>Flexibility: reuse <code>dumpInit</code> for
-                multiple runs</li>
-                <li>Consistency: single source of truth for common
-                code</li>
-                <li>Development speed: skip init during main-phase
-                testing</li>
-                </ol>
-                <h2 id="migration-guide">Migration guide</h2>
-                <p>From old local code
-                (<code>JumpingDrops_legacy.c</code>):</p>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Before</span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./JumpingDrops</span> Oh Bo MAXlevel</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co"># After</span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="ex">./jumpingDrops_init</span> Oh Bo MAXlevel</span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="ex">./jumpingDrops_main</span> tmax Oh Bo MAXlevel</span></code></pre></div></div>
-                <p>From old HPC code
-                (<code>JumpingDrops_Snellius_legacy.c</code>):</p>
-                <div class="code-block-container"><div class="code-block-container"><pre
-                class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Before (missing gravity)</span></span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="ex">mpirun</span> <span class="at">-np</span> 48 ./JumpingDrops_Snellius_legacy case.params</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># After</span></span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="ex">./runSimulation.sh</span> <span class="at">--init-only</span> case.params</span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="fu">scp</span> dumpInit hpc:case/</span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="ex">srun</span> <span class="at">-n</span> 48 ./jumpingDrops_main tmax Oh Bo MAXlevel</span></code></pre></div></div>
-                <h2 id="file-sizes-typical">File sizes (typical)</h2>
-                <table>
-                <thead>
-                <tr class="header">
-                <th>File</th>
-                <th>Size</th>
-                <th>Transfer?</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr class="odd">
-                <td><code>InitialCondition.stl</code></td>
-                <td>~1-10 MB</td>
-                <td>No (local only)</td>
-                </tr>
-                <tr class="even">
-                <td><code>dumpInit</code></td>
-                <td>~10-100 MB</td>
-                <td>Yes (to HPC)</td>
-                </tr>
-                <tr class="odd">
-                <td>snapshot files</td>
-                <td>~10-100 MB each</td>
-                <td>No (keep on HPC)</td>
-                </tr>
-                </tbody>
-                </table>
-                <h2 id="performance-notes">Performance notes</h2>
-                <h3 id="initialization-phase">Initialization phase</h3>
+                <p>At runtime, new case directories are created under
+                <code>simulationCases/&lt;CaseNo&gt;/</code>. These
+                directories typically contain <code>case.params</code>,
+                <code>dumpInit</code>, <code>dump</code>,
+                <code>log</code>, and
+                <code>intermediate/snapshot-*</code> outputs.</p>
+                <h2 id="notes">Notes</h2>
                 <ul>
-                <li>Runtime: ~1-2 minutes (depends on MAXlevel and STL
-                complexity)</li>
-                <li>Memory: moderate (STL loading + distance field)</li>
-                <li>Parallelization: serial only (distance.h
-                limitation)</li>
-                <li>Frequency: once per geometry</li>
-                </ul>
-                <h3 id="main-phase">Main phase</h3>
-                <ul>
-                <li>Runtime: hours to days (depends on tmax,
-                MAXlevel)</li>
-                <li>Memory: varies with refinement</li>
-                <li>Parallelization: strong MPI scaling</li>
-                <li>Frequency: multiple runs with same initial
-                condition</li>
-                </ul>
-                <h2 id="best-practices">Best practices</h2>
-                <ol type="1">
-                <li>Run init locally (STL loading not
-                MPI-compatible)</li>
-                <li>Transfer <code>dumpInit</code> to HPC (smaller than
-                STL files)</li>
-                <li>Use <code>--skip-init</code> for sweeps after first
-                run</li>
-                <li>Check logs for parameter values (Oh, Bo,
-                gravity)</li>
-                <li>Use restart files for long runs</li>
-                <li>Keep <code>dumpInit</code> once generated</li>
-                </ol>
-                <h2 id="testing-checklist">Testing checklist</h2>
-                <h3 id="local">Local</h3>
-                <ul class="task-list">
-                <li><input type="checkbox" disabled="" />Compile init
-                phase:
-                <code>./runSimulation.sh --init-only --compile-only</code></li>
-                <li><input type="checkbox" disabled="" />Compile main
-                phase:
-                <code>./runSimulation.sh --main-only --compile-only</code></li>
-                <li><input type="checkbox" disabled="" />Run init phase:
-                <code>./runSimulation.sh --init-only default.params</code></li>
-                <li><input type="checkbox" disabled="" />Verify
-                <code>dumpInit</code> created</li>
-                <li><input type="checkbox" disabled="" />Run main phase
-                serial:
-                <code>./runSimulation.sh --main-only default.params</code></li>
-                <li><input type="checkbox" disabled="" />Run main phase
-                MPI:
-                <code>./runSimulation.sh --main-only --mpi --cores 4 default.params</code></li>
-                <li><input type="checkbox" disabled="" />Check log file
-                for correct Oh, Bo values</li>
-                <li><input type="checkbox" disabled="" />Verify gravity
-                effects in output</li>
-                </ul>
-                <h3 id="hpc">HPC</h3>
-                <ul class="task-list">
-                <li><input type="checkbox" disabled="" />Transfer
-                <code>dumpInit</code> to HPC</li>
-                <li><input type="checkbox" disabled="" />Test single
-                case compilation on HPC</li>
-                <li><input type="checkbox" disabled="" />Run single case
-                with MPI:
-                <code>srun -n 48 ./jumpingDrops_main tmax Oh Bo MAXlevel</code></li>
-                <li><input type="checkbox" disabled="" />Submit
-                parameter sweep:
-                <code>sbatch runSweepSnellius.sbatch</code></li>
-                <li><input type="checkbox" disabled="" />Verify log
-                files show correct parameters</li>
-                <li><input type="checkbox" disabled="" />Check that all
-                cases complete successfully</li>
-                </ul>
-                <h2 id="future-enhancements">Future enhancements</h2>
-                <ul>
-                <li>Support different STL geometries per case</li>
-                <li>Automatic <code>dumpInit</code> synchronization
-                script</li>
-                <li>Parameter validation in shell scripts</li>
-                <li>Progress monitoring during long runs</li>
-                <li>Automatic restart on HPC node failure</li>
-                <li>Post-processing integration</li>
-                </ul>
-                <h2 id="contact">Contact</h2>
-                <ul>
-                <li>Author: Vatsal Sanjay</li>
-                <li>Email: vatsalsanjay@gmail.com</li>
-                <li>Physics of Fluids</li>
+                <li>STL geometry is only used in the initialization
+                phase; do not enable MPI there.</li>
+                <li>The main phase restores from <code>dump</code>, so
+                <code>dumpInit</code> is copied to <code>dump</code>
+                after a fresh init run.</li>
+                <li><code>CLAUDE.md</code> is intentionally a one-line
+                pointer to <code>AGENTS.md</code> and is ignored by
+                git.</li>
                 </ul>
                 <h2 id="generated-documentation">Generated
                 Documentation</h2>
@@ -961,6 +647,10 @@ window.baseDomain = "https://comphy-lab.org/Jumping-Drops";
                 <ul>
                 <li><a
                 href="src-local/jumpingDrops_common.h.html">src-local/jumpingDrops_common.h</a></li>
+                <li><a
+                href="src-local/params.h.html">src-local/params.h</a></li>
+                <li><a
+                href="src-local/parse_params.h.html">src-local/parse_params.h</a></li>
                 <li><a
                 href="src-local/parse_params.sh.html">src-local/parse_params.sh</a></li>
                 </ul>

@@ -1,337 +1,137 @@
-# Jumping-Drops
+# Jumping Drops
 
-Jumping drops Basilisk simulation with a two-phase workflow:
-initialization (STL geometry -> `dumpInit`) and a main MPI-compatible run.
+Jumping Drops is a Basilisk two-phase drop-impact workflow split into two entry
+points:
+
+- `simulationCases/jumpingDrops_init.c` creates `dumpInit` from STL geometry in serial.
+- `simulationCases/jumpingDrops_main.c` restores `dump`/`dumpInit` and runs the MPI-ready main simulation.
+
+The standardized runtime contract is `case.params`: shell scripts generate and
+validate parameter files, and the Basilisk executables read the same file
+directly at runtime.
 
 ## Requirements
-- Basilisk (`qcc` on `PATH`)
-- MPI (optional, for parallel main phase)
-- macOS or Linux
 
-## Basilisk (Required)
+- Basilisk with `qcc` available on `PATH`
+- MPI tools (`mpicc`, `mpirun`, `srun`) for parallel main runs
+- A local `.project_config` file
 
-First-time install (or reinstall):
+Setup the local Basilisk path by copying and editing the example if needed:
+
 ```bash
-curl -sL https://raw.githubusercontent.com/comphy-lab/basilisk-C/main/reset_install_basilisk-ref-locked.sh | bash -s -- --ref=v2026-01-29 --hard
-```
-
-Subsequent runs (reuses existing `basilisk/` if same ref):
-```bash
-curl -sL https://raw.githubusercontent.com/comphy-lab/basilisk-C/main/reset_install_basilisk-ref-locked.sh | bash -s -- --ref=v2026-01-29
-```
-
-Load the environment before running the scripts:
-```bash
+cp .project_config.example .project_config
 source .project_config
 ```
 
-> Note: Replace `v2026-01-29` with the latest release tag from https://github.com/comphy-lab/basilisk-C/releases.
+The vendored `basilisk/` directory is treated as a local dependency and is
+ignored by git.
 
-## Quick start
+## Quick Start
+
 ```bash
-# Full workflow (init + main)
+# Full workflow for one case
 ./runSimulation.sh default.params
 
-# Init only (STL -> dumpInit)
+# Initialization only
 ./runSimulation.sh --init-only default.params
 
-# Main only (MPI)
+# Main phase only with MPI
 ./runSimulation.sh --main-only --mpi --cores 8 default.params
 
-# Parameter sweep
-./runParameterSweep.sh sweep.params
-```
-
-## Overview
-
-This codebase has been refactored from two monolithic files into a modular workflow
-with a clean separation between initialization and the MPI-compatible main simulation.
-
-### Deprecated (do not use)
-- `simulationCases/JumpingDrops_legacy.c` - local initialization with STL
-- `simulationCases/JumpingDrops_Snellius_legacy.c` - HPC version (missing gravity bug)
-
-### Current sources
-- `src-local/jumpingDrops_common.h` - shared definitions, tolerances, boundary conditions,
-  and helper functions (`refRegion()`, `adapt()`, `writingFiles()`, `logWriting()`), with
-  MPI-aware logging via `MPI_MODE`
-- `simulationCases/jumpingDrops_init.c` - init phase (serial only; uses `distance.h`
-  and `reduced.h`) that writes `dumpInit`
-- `simulationCases/jumpingDrops_main.c` - main simulation (MPI-ready; no `distance.h`)
-  that restores from `dump`/`dumpInit`
-- `src-local/parse_params.sh` - parameter file parsing helpers
-
-## File execution summary
-
-| File | Purpose | MPI | Input | Output |
-|------|---------|-----|-------|--------|
-| `simulationCases/jumpingDrops_init.c` | Create initial condition | No (serial only) | STL file | `dumpInit` |
-| `simulationCases/jumpingDrops_main.c` | Run simulation | Yes | `dump`/`dumpInit` | snapshots, log |
-
-## Parameters
-- Parameter files are `key=value` lines.
-- Required keys: `CaseNo`, `Oh`, `Bo`, `MAXlevel`, `tmax`.
-- Sweep files define `BASE_CONFIG`, `CASE_START`, `CASE_END`, and `SWEEP_*` values.
-
-### Parameter file template (required keys)
-```bash
-CaseNo=1000              # 4-digit case number (1000-9999)
-Oh=0.001                 # Ohnesorge number
-Bo=0.001                 # Bond number
-MAXlevel=10              # Maximum refinement level
-tmax=10.0                # Maximum simulation time (main phase only)
-```
-
-### Example: `default.params`
-```bash
-# Jumping Drops Simulation Parameters
-CaseNo=1000
-Oh=0.001
-Bo=0.001
-MAXlevel=10
-tmax=10.0
-```
-
-## Script options
-
-### runSimulation.sh
-```bash
---init-only       # Init phase only
---main-only       # Main phase only
---mpi             # Enable MPI
---cores N         # Number of MPI cores (default: 4)
---compile-only    # Compile but don't run
---debug           # Debug mode (-g -DTRASH=1)
---verbose         # Verbose output
-```
-
-### runParameterSweep.sh
-```bash
---skip-init       # Skip init for all cases
---dry-run         # Show combinations, don't run
---mpi             # Enable MPI for all cases
---cores N         # MPI cores per case
---compile-only    # Compile but don't run
---verbose         # Verbose output
-```
-
-## Common workflows
-
-### Single case development
-```bash
-# First time
-./runSimulation.sh case.params
-
-# Subsequent runs (skip init)
-./runSimulation.sh --main-only case.params
-```
-
-### Parameter sweep
-```bash
-# First sweep (auto-runs init if needed)
+# Deterministic parameter sweep
 ./runParameterSweep.sh sweep.params
 
-# Re-run after changes (skip init)
-./runParameterSweep.sh --skip-init sweep.params
+# Inspect generated sweep cases without running them
+./runParameterSweep.sh --dry-run sweep.params
 ```
 
-### HPC workflow (Snellius)
+## Runtime Parameters
 
-Step 1: Local - create initial conditions
+Parameter files use `key=value` lines with optional `#` comments.
+
+Required single-case keys:
+
+- `CaseNo`
+- `Oh`
+- `Bo`
+- `MAXlevel`
+- `tmax`
+
+The shared parser layers are:
+
+- `src-local/parse_params.sh` for shell runners and sweep generation
+- `src-local/parse_params.h` for low-level C parsing
+- `src-local/params.h` for typed C accessors with defaults and warnings
+
+`runSimulation.sh` copies the chosen input file into
+`simulationCases/<CaseNo>/case.params`, then runs the compiled executable as:
+
 ```bash
-for case in 1000 1001 1002; do
-    ./runSimulation.sh --init-only "simulationCases/${case}/case.params"
-done
+./jumpingDrops_init case.params
+./jumpingDrops_main case.params
 ```
 
-Step 2: Local - transfer to HPC
+Sweep files define:
+
+- `BASE_CONFIG`
+- `CASE_START`
+- `CASE_END`
+- one or more `SWEEP_*` variables
+
+`runParameterSweep.sh` generates one `case.params` file per combination,
+enforces exact agreement between the generated combination count and the
+`CASE_START`/`CASE_END` range, and then dispatches each case through
+`runSimulation.sh`.
+
+## HPC Workflow
+
+`runSweepSnellius.sbatch` is the main-only HPC runner. The expected workflow is:
+
+1. Generate `dumpInit` locally with `./runSimulation.sh --init-only ...`
+2. Transfer `dumpInit` into each `simulationCases/<CaseNo>/` directory on HPC
+3. Submit `runSweepSnellius.sbatch`
+
+On Snellius, the batch script delegates to the shared root sweep runner in
+main-only MPI mode:
+
 ```bash
-for case in 1000 1001 1002; do
-    scp "simulationCases/${case}/dumpInit" \
-        "hpc:Drop-Impact/simulationCases/${case}/"
-done
+bash runParameterSweep.sh --skip-init --mpi --cores "${SLURM_NTASKS}" sweep.params
 ```
 
-Or transfer all at once:
-```bash
-rsync -av --include='**/dumpInit' --include='*/' --exclude='*' \
-    simulationCases/ hpc:Drop-Impact/simulationCases/
-```
+It sets `MPI_LAUNCHER=srun` and `MPI_LAUNCHER_NFLAG=-n` so the shared
+`runSimulation.sh` runner launches the main executable with `srun` instead of
+duplicating a separate HPC-only execution path.
 
-Step 3: HPC - run sweep
-```bash
-sbatch runSweepSnellius.sbatch
-```
-
-## What you need on HPC
-
-Minimum files per case directory:
-```
-simulationCases/<CaseNo>/
-├── dumpInit              # From local init phase
-└── case.params           # Generated by sweep
-```
-
-Auto-created by the sbatch script:
-```
-simulationCases/<CaseNo>/
-├── jumpingDrops_main.c   # Copied by script
-├── jumpingDrops_main     # Compiled executable
-└── intermediate/         # Created if needed
-```
-
-Shared header used during compilation:
-```
-src-local/jumpingDrops_common.h
-```
-
-## Quick troubleshooting
-
-| Error | Cause | Fix |
-|------|-------|-----|
-| "dump file not found" | No initial condition | Run `--init-only` first |
-| "Cannot restore dump" | Corrupted dump | Re-run init phase |
-| "Source file not found" | Missing files on HPC | Transfer all new `.c/.h` files |
-| Init phase too slow | High MAXlevel | Expected - only run once |
-
-## Critical fixes applied
-1. Missing gravity: both init and main now set `G.y = -Bo`
-2. Error tolerances consistent: `fErr=1e-3`, `KErr=1e-4`, `VelErr=1e-2`
-3. Gas viscosity consistent: `mu2 = Mu21*Oh = 1e-3*Oh`
-4. MPI-aware logging with `pid()` checks inside `logWriting()`
-5. Shared common header for consistent behavior across phases
-
-## Compilation details
-
-### Initialization phase (`simulationCases/jumpingDrops_init.c`)
-- Compiler: `qcc` (serial only)
-- Include: `distance.h`, `reduced.h`
-- Flags: `-O2 -Wall -disable-dimensions`
-- MPI: not supported
-
-### Main phase (`simulationCases/jumpingDrops_main.c`)
-- Compiler: `qcc` (serial) or `mpicc + qcc` (parallel)
-- Include: no `distance.h`
-- Flags: `-O2 -Wall -disable-dimensions [-D_MPI=1]`
-- MPI: supported
-
-## Directory structure
+## Repository Structure
 
 ```
-├── src-local/
-│   ├── jumpingDrops_common.h          # Shared definitions
-│   └── parse_params.sh                # Parameter parsing helpers
-├── simulationCases/
-│   ├── jumpingDrops_init.c            # Initialization
-│   ├── jumpingDrops_main.c            # Main simulation
-│   ├── JumpingDrops_legacy.c          # Deprecated
-│   ├── JumpingDrops_Snellius_legacy.c # Deprecated
-│   └── <CaseNo>/                      # Case directories
-│       ├── case.params                # Parameter file
-│       ├── InitialCondition.stl       # STL geometry (for init)
-│       ├── dumpInit                   # Initial condition (from init)
-│       ├── dump                       # Current state
-│       ├── restart                    # Restart file (if exists)
-│       ├── log                        # Simulation log
-│       └── intermediate/              # Snapshot files
-│           └── snapshot-*.dump
-├── runSimulation.sh                   # Single case runner
-├── runParameterSweep.sh               # Parameter sweep
-├── runSweepSnellius.sbatch            # HPC sweep
-├── default.params                     # Example single-case parameters
-├── sweep.params                       # Example sweep configuration
-└── .project_config.example            # Basilisk environment template
+├── .github/ - documentation site assets, build scripts, and workflows
+├── .project_config.example - example Basilisk environment configuration
+├── AGENTS.md - authoritative project instructions for coding agents
+├── README.md - project overview and workflow documentation
+├── default.params - example single-case runtime parameters
+├── runParameterSweep.sh - deterministic sweep generator and dispatcher
+├── runSimulation.sh - single-case compile/run entry point
+├── runSweepSnellius.sbatch - Snellius wrapper around the shared MPI main-phase sweep runner
+├── simulationCases/ - Basilisk entry points and preserved legacy sources
+│   ├── JumpingDrops_Snellius_legacy.c - preserved legacy HPC variant
+│   ├── JumpingDrops_legacy.c - preserved monolithic legacy source
+│   ├── jumpingDrops_init.c - STL-to-dumpInit initialization phase
+│   └── jumpingDrops_main.c - MPI-compatible main simulation phase
+├── src-local/ - shared headers and parameter parsing helpers
+│   ├── jumpingDrops_common.h - shared Basilisk constants, AMR logic, and events
+│   ├── params.h - typed runtime accessors for C entry points
+│   ├── parse_params.h - low-level C parser for key=value files
+│   └── parse_params.sh - shared shell parser/update helpers
+└── sweep.params - example sweep definition
 ```
 
-## Advantages of modular design
-1. Clean separation: initialization vs main simulation
-2. MPI compatibility: no `distance.h` in parallel code
-3. Flexibility: reuse `dumpInit` for multiple runs
-4. Consistency: single source of truth for common code
-5. Development speed: skip init during main-phase testing
+At runtime, new case directories are created under `simulationCases/<CaseNo>/`.
+These directories typically contain `case.params`, `dumpInit`, `dump`, `log`,
+and `intermediate/snapshot-*` outputs.
 
-## Migration guide
+## Notes
 
-From old local code (`JumpingDrops_legacy.c`):
-```bash
-# Before
-./JumpingDrops Oh Bo MAXlevel
-
-# After
-./jumpingDrops_init Oh Bo MAXlevel
-./jumpingDrops_main tmax Oh Bo MAXlevel
-```
-
-From old HPC code (`JumpingDrops_Snellius_legacy.c`):
-```bash
-# Before (missing gravity)
-mpirun -np 48 ./JumpingDrops_Snellius_legacy case.params
-
-# After
-./runSimulation.sh --init-only case.params
-scp dumpInit hpc:case/
-srun -n 48 ./jumpingDrops_main tmax Oh Bo MAXlevel
-```
-
-## File sizes (typical)
-
-| File | Size | Transfer? |
-|------|------|-----------|
-| `InitialCondition.stl` | ~1-10 MB | No (local only) |
-| `dumpInit` | ~10-100 MB | Yes (to HPC) |
-| snapshot files | ~10-100 MB each | No (keep on HPC) |
-
-## Performance notes
-
-### Initialization phase
-- Runtime: ~1-2 minutes (depends on MAXlevel and STL complexity)
-- Memory: moderate (STL loading + distance field)
-- Parallelization: serial only (distance.h limitation)
-- Frequency: once per geometry
-
-### Main phase
-- Runtime: hours to days (depends on tmax, MAXlevel)
-- Memory: varies with refinement
-- Parallelization: strong MPI scaling
-- Frequency: multiple runs with same initial condition
-
-## Best practices
-1. Run init locally (STL loading not MPI-compatible)
-2. Transfer `dumpInit` to HPC (smaller than STL files)
-3. Use `--skip-init` for sweeps after first run
-4. Check logs for parameter values (Oh, Bo, gravity)
-5. Use restart files for long runs
-6. Keep `dumpInit` once generated
-
-## Testing checklist
-
-### Local
-- [ ] Compile init phase: `./runSimulation.sh --init-only --compile-only`
-- [ ] Compile main phase: `./runSimulation.sh --main-only --compile-only`
-- [ ] Run init phase: `./runSimulation.sh --init-only default.params`
-- [ ] Verify `dumpInit` created
-- [ ] Run main phase serial: `./runSimulation.sh --main-only default.params`
-- [ ] Run main phase MPI: `./runSimulation.sh --main-only --mpi --cores 4 default.params`
-- [ ] Check log file for correct Oh, Bo values
-- [ ] Verify gravity effects in output
-
-### HPC
-- [ ] Transfer `dumpInit` to HPC
-- [ ] Test single case compilation on HPC
-- [ ] Run single case with MPI: `srun -n 48 ./jumpingDrops_main tmax Oh Bo MAXlevel`
-- [ ] Submit parameter sweep: `sbatch runSweepSnellius.sbatch`
-- [ ] Verify log files show correct parameters
-- [ ] Check that all cases complete successfully
-
-## Future enhancements
-- Support different STL geometries per case
-- Automatic `dumpInit` synchronization script
-- Parameter validation in shell scripts
-- Progress monitoring during long runs
-- Automatic restart on HPC node failure
-- Post-processing integration
-
-## Contact
-- Author: Vatsal Sanjay
-- Email: vatsalsanjay@gmail.com
-- Physics of Fluids
+- STL geometry is only used in the initialization phase; do not enable MPI there.
+- The main phase restores from `dump`, so `dumpInit` is copied to `dump` after a fresh init run.
+- `CLAUDE.md` is intentionally a one-line pointer to `AGENTS.md` and is ignored by git.

@@ -51,6 +51,16 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://comphy-lab.org/Jumping-Drops/src-local/params.h.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://comphy-lab.org/Jumping-Drops/src-local/parse_params.h.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://comphy-lab.org/Jumping-Drops/src-local/parse_params.sh.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>

@@ -1,6 +1,6 @@
 # Jumping Drops Sweep Configuration
 BASE_CONFIG=default.params
 CASE_START=1000
-CASE_END=1005
-SWEEP_Oh=0.001,0.002,0.003
-SWEEP_Bo=0.001,0.01
+CASE_END=1003
+SWEEP_Oh=0.001,1.0
+SWEEP_Bo=0.0,4.0

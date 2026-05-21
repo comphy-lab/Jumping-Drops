@@ -1,88 +1,56 @@
 #!/bin/bash
-# runSimulation.sh - Run single jumping drops simulation from root directory
-# Creates case folder in simulationCases/<CaseNo>/ and runs simulation there
+# runSimulation.sh - Run a single Jumping Drops case from the repository root.
 
-set -e  # Exit on error
+set -euo pipefail
 
-# ============================================================
-# Configuration
-# ============================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+QCC_FLAGS="${QCC_FLAGS:-}"
+MPI_LAUNCHER="${MPI_LAUNCHER:-mpirun}"
+MPI_LAUNCHER_NFLAG="${MPI_LAUNCHER_NFLAG:--np}"
 
-# Source project configuration
 if [ -f "${SCRIPT_DIR}/.project_config" ]; then
-    source "${SCRIPT_DIR}/.project_config"
+  # shellcheck disable=SC1091
+  source "${SCRIPT_DIR}/.project_config"
 else
-    echo "ERROR: .project_config not found" >&2
-    echo "       Run ./reset_install_requirements.sh or copy .project_config.example" >&2
-    exit 1
+  echo "ERROR: .project_config not found" >&2
+  echo "       Copy .project_config.example or create a local project config first." >&2
+  exit 1
 fi
 
-# Source parameter parsing library
 if [ -f "${SCRIPT_DIR}/src-local/parse_params.sh" ]; then
-    source "${SCRIPT_DIR}/src-local/parse_params.sh"
+  # shellcheck disable=SC1091
+  source "${SCRIPT_DIR}/src-local/parse_params.sh"
 else
-    echo "ERROR: src-local/parse_params.sh not found" >&2
-    exit 1
+  echo "ERROR: src-local/parse_params.sh not found" >&2
+  exit 1
 fi
 
-# ============================================================
-# Usage Information
-# ============================================================
 usage() {
-    cat <<EOF
-Usage: $0 [OPTIONS] [params_file]
+  cat <<'EOF'
+Usage: ./runSimulation.sh [OPTIONS] [params_file]
 
-Run single jumping drops simulation from root directory.
-Creates case folder in simulationCases/<CaseNo>/ based on parameter file.
+Run a single jumping-drops case from the repository root.
+The script creates or reuses simulationCases/<CaseNo>/, copies the parameter
+file to case.params, compiles the required executable(s), and passes case.params
+to the compiled binary.
 
 Options:
-    -c, --compile-only    Compile but don't run simulation
-    --init-only           Run initialization phase only (creates dumpInit)
-    --main-only           Run main simulation only (requires dumpInit)
-    -d, --debug           Compile with debug flags (-g -DTRASH=1)
-    -m, --mpi             Enable MPI parallel execution (main phase only)
-    --cores N             Number of MPI cores (default: 4, requires --mpi)
-    -v, --verbose         Verbose output
-    -h, --help           Show this help message
-
-Parameter file mode (default):
-    $0 default.params
-
-If no parameter file specified, uses default.params from current directory.
-
-Environment variables:
-    QCC_FLAGS     Additional qcc compiler flags
+  -c, --compile-only   Compile but do not execute the case
+  --init-only          Run only the STL initialization phase
+  --main-only          Run only the main simulation phase
+  -d, --debug          Compile with -g -DTRASH=1
+  -m, --mpi            Enable MPI for the main phase
+  --cores N            Number of MPI ranks (default: 4)
+  -v, --verbose        Print the executed compile/run commands
+  -h, --help           Show this help message
 
 Examples:
-    # Run full workflow (init + main, serial)
-    $0
-
-    # Run initialization only (creates dumpInit from STL)
-    $0 --init-only
-
-    # Run main simulation only (requires dumpInit)
-    $0 --main-only --mpi --cores 8
-
-    # Run with MPI parallel execution (4 cores)
-    $0 --mpi
-
-    # Run with MPI using 8 cores
-    $0 --mpi --cores 8 default.params
-
-    # Compile only (check for errors)
-    $0 --compile-only
-
-    # Debug mode with memory checking
-    $0 --debug default.params
-
-For more information, see README.md
+  ./runSimulation.sh
+  ./runSimulation.sh --init-only default.params
+  ./runSimulation.sh --main-only --mpi --cores 8 default.params
 EOF
 }
 
-# ============================================================
-# Parse Command Line Options
-# ============================================================
 COMPILE_ONLY=0
 INIT_ONLY=0
 MAIN_ONLY=0
@@ -92,117 +60,99 @@ MPI_ENABLED=0
 MPI_CORES=4
 
 while [[ $# -gt 0 ]]; do
-    case $1 in
-        -c|--compile-only)
-            COMPILE_ONLY=1
-            shift
-            ;;
-        --init-only)
-            INIT_ONLY=1
-            shift
-            ;;
-        --main-only)
-            MAIN_ONLY=1
-            shift
-            ;;
-        -d|--debug)
-            DEBUG_FLAGS="-g -DTRASH=1"
-            shift
-            ;;
-        -m|--mpi)
-            MPI_ENABLED=1
-            shift
-            ;;
-        --cores)
-            MPI_CORES="$2"
-            if ! [[ "$MPI_CORES" =~ ^[0-9]+$ ]] || [ "$MPI_CORES" -lt 1 ]; then
-                echo "ERROR: --cores requires a positive integer, got: $MPI_CORES" >&2
-                exit 1
-            fi
-            shift 2
-            ;;
-        -v|--verbose)
-            VERBOSE=1
-            shift
-            ;;
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        -*)
-            echo "ERROR: Unknown option: $1" >&2
-            usage
-            exit 1
-            ;;
-        *)
-            break
-            ;;
-    esac
+  case "$1" in
+    -c|--compile-only)
+      COMPILE_ONLY=1
+      shift
+      ;;
+    --init-only)
+      INIT_ONLY=1
+      shift
+      ;;
+    --main-only)
+      MAIN_ONLY=1
+      shift
+      ;;
+    -d|--debug)
+      DEBUG_FLAGS="-g -DTRASH=1"
+      shift
+      ;;
+    -m|--mpi)
+      MPI_ENABLED=1
+      shift
+      ;;
+    --cores)
+      if [ $# -lt 2 ]; then
+        echo "ERROR: --cores requires a positive integer" >&2
+        exit 1
+      fi
+      MPI_CORES="$2"
+      if ! [[ "$MPI_CORES" =~ ^[0-9]+$ ]] || [ "$MPI_CORES" -lt 1 ]; then
+        echo "ERROR: --cores requires a positive integer, got: $MPI_CORES" >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    -v|--verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      echo "ERROR: Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+    *)
+      break
+      ;;
+  esac
 done
 
-# ============================================================
-# Detect OS and Verify MPI
-# ============================================================
-OS_TYPE=$(uname -s)
-
-# Verify MPI tools if MPI is enabled
-if [ $MPI_ENABLED -eq 1 ]; then
-    if ! command -v mpicc &> /dev/null; then
-        echo "ERROR: mpicc not found. MPI compilation requires mpicc (OpenMPI or MPICH)." >&2
-        echo "       Install MPI tools or run without --mpi flag for serial execution." >&2
-        exit 1
-    fi
-    if ! command -v mpirun &> /dev/null; then
-        echo "ERROR: mpirun not found. MPI execution requires mpirun (OpenMPI or MPICH)." >&2
-        echo "       Install MPI tools or run without --mpi flag for serial execution." >&2
-        exit 1
-    fi
+if [ "$INIT_ONLY" -eq 1 ] && [ "$MAIN_ONLY" -eq 1 ]; then
+  echo "ERROR: Cannot specify both --init-only and --main-only" >&2
+  exit 1
 fi
 
-# ============================================================
-# Determine Parameter File
-# ============================================================
+if [ "$MPI_ENABLED" -eq 1 ]; then
+  if ! command -v mpicc >/dev/null 2>&1; then
+    echo "ERROR: mpicc not found. MPI compilation requires mpicc." >&2
+    exit 1
+  fi
+  if ! command -v "$MPI_LAUNCHER" >/dev/null 2>&1; then
+    echo "ERROR: MPI launcher '$MPI_LAUNCHER' not found." >&2
+    exit 1
+  fi
+fi
+
 PARAM_FILE="${1:-default.params}"
-
 if [ ! -f "$PARAM_FILE" ]; then
-    echo "ERROR: Parameter file not found: $PARAM_FILE" >&2
-    exit 1
+  echo "ERROR: Parameter file not found: $PARAM_FILE" >&2
+  exit 1
 fi
 
-[ $VERBOSE -eq 1 ] && echo "Parameter file: $PARAM_FILE"
+PARAM_FILE_ABS="$(cd "$(dirname "$PARAM_FILE")" && pwd)/$(basename "$PARAM_FILE")"
 
-# ============================================================
-# Parse Parameters to Get CaseNo
-# ============================================================
-parse_param_file "$PARAM_FILE"
+require_params "$PARAM_FILE_ABS" CaseNo Oh Bo MAXlevel tmax || exit 1
+CASE_NO="$(get_param "CaseNo")"
+validate_case_no "$CASE_NO" || exit 1
 
-CASE_NO=$(get_param "CaseNo")
+OH_VALUE="$(get_param "Oh")"
+BO_VALUE="$(get_param "Bo")"
+MAXLEVEL_VALUE="$(get_param "MAXlevel")"
+TMAX_VALUE="$(get_param "tmax")"
 
-if [ -z "$CASE_NO" ]; then
-    echo "ERROR: CaseNo not found in parameter file" >&2
-    exit 1
-fi
+CASE_DIR="${SCRIPT_DIR}/simulationCases/${CASE_NO}"
+CASE_PARAM_FILE="${CASE_DIR}/case.params"
 
-# Validate CaseNo is 4 digits
-if ! [[ "$CASE_NO" =~ ^[0-9]{4}$ ]] || [ "$CASE_NO" -lt 1000 ] || [ "$CASE_NO" -gt 9999 ]; then
-    echo "ERROR: CaseNo must be 4-digit (1000-9999), got: $CASE_NO" >&2
-    exit 1
-fi
-
-CASE_DIR="simulationCases/${CASE_NO}"
-
-# Validate phase flags
-if [ $INIT_ONLY -eq 1 ] && [ $MAIN_ONLY -eq 1 ]; then
-    echo "ERROR: Cannot specify both --init-only and --main-only" >&2
-    exit 1
-fi
-
-# Determine phase mode
 PHASE_MODE="both"
-if [ $INIT_ONLY -eq 1 ]; then
-    PHASE_MODE="init"
-elif [ $MAIN_ONLY -eq 1 ]; then
-    PHASE_MODE="main"
+if [ "$INIT_ONLY" -eq 1 ]; then
+  PHASE_MODE="init"
+elif [ "$MAIN_ONLY" -eq 1 ]; then
+  PHASE_MODE="main"
 fi
 
 echo "========================================="
@@ -210,264 +160,132 @@ echo "Jumping Drops Simulation - Single Case"
 echo "========================================="
 echo "Case Number: $CASE_NO"
 echo "Case Directory: $CASE_DIR"
-echo "Parameter File: $PARAM_FILE"
+echo "Parameter File: $PARAM_FILE_ABS"
 echo "Phase Mode: $PHASE_MODE"
-if [ $MPI_ENABLED -eq 1 ]; then
-    echo "Execution Mode: MPI Parallel ($MPI_CORES cores)"
+echo "Parameters: Oh=$OH_VALUE, Bo=$BO_VALUE, MAXlevel=$MAXLEVEL_VALUE, tmax=$TMAX_VALUE"
+if [ "$MPI_ENABLED" -eq 1 ]; then
+  echo "Execution Mode: MPI Parallel ($MPI_CORES cores)"
 else
-    echo "Execution Mode: Serial"
+  echo "Execution Mode: Serial"
 fi
-echo ""
+echo
 
-# ============================================================
-# Create Case Directory
-# ============================================================
-if [ ! -d "$CASE_DIR" ]; then
-    echo "Creating case directory: $CASE_DIR"
-    mkdir -p "$CASE_DIR"
-else
-    echo "Case directory exists (will use restart if available)"
+mkdir -p "$CASE_DIR"
+
+if [ "$PARAM_FILE_ABS" != "$CASE_PARAM_FILE" ]; then
+  cp "$PARAM_FILE_ABS" "$CASE_PARAM_FILE"
 fi
 
-# Copy parameter file to case directory for record keeping
-cp "$PARAM_FILE" "$CASE_DIR/case.params"
-
-# Change to case directory
 cd "$CASE_DIR"
-[ $VERBOSE -eq 1 ] && echo "Working directory: $(pwd)"
 
-# ============================================================
-# Compilation
-# ============================================================
-echo ""
 echo "========================================="
 echo "Compilation"
 echo "========================================="
 
-# Compile initialization phase (if needed)
 if [ "$PHASE_MODE" = "init" ] || [ "$PHASE_MODE" = "both" ]; then
-    SRC_INIT="../jumpingDrops_init.c"
-    EXEC_INIT="jumpingDrops_init"
+  if [ ! -f "../jumpingDrops_init.c" ]; then
+    echo "ERROR: Source file ../jumpingDrops_init.c not found" >&2
+    exit 1
+  fi
 
-    if [ ! -f "$SRC_INIT" ]; then
-        echo "ERROR: Source file $SRC_INIT not found" >&2
-        exit 1
-    fi
+  if [ "$VERBOSE" -eq 1 ]; then
+    echo "Command: qcc -I../../src-local -O2 -Wall -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} ../jumpingDrops_init.c -o jumpingDrops_init -lm"
+  fi
 
-    echo "Compiling initialization phase ($SRC_INIT)..."
-    [ $VERBOSE -eq 1 ] && echo "Compiler: qcc (serial only, STL geometry)"
-    [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
-    [ $VERBOSE -eq 1 ] && echo "Flags: -O2 -Wall -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
-
-    # Init phase is always serial (distance.h not MPI-compatible)
-    qcc -I../../src-local \
-        -O2 -Wall -disable-dimensions \
-        $DEBUG_FLAGS $QCC_FLAGS \
-        "$SRC_INIT" -o "$EXEC_INIT" -lm
-
-    if [ $? -ne 0 ]; then
-        echo "ERROR: Compilation of initialization phase failed" >&2
-        exit 1
-    fi
-
-    echo "Compilation successful: $EXEC_INIT"
-    echo ""
+  qcc -I../../src-local \
+    -O2 -Wall -disable-dimensions \
+    ${DEBUG_FLAGS} ${QCC_FLAGS} \
+    ../jumpingDrops_init.c -o jumpingDrops_init -lm
 fi
 
-# Compile main phase (if needed)
 if [ "$PHASE_MODE" = "main" ] || [ "$PHASE_MODE" = "both" ]; then
-    SRC_MAIN="../jumpingDrops_main.c"
-    EXEC_MAIN="jumpingDrops_main"
+  if [ ! -f "../jumpingDrops_main.c" ]; then
+    echo "ERROR: Source file ../jumpingDrops_main.c not found" >&2
+    exit 1
+  fi
 
-    if [ ! -f "$SRC_MAIN" ]; then
-        echo "ERROR: Source file $SRC_MAIN not found" >&2
-        exit 1
-    fi
+  if [ "$MPI_ENABLED" -eq 1 ]; then
+    if [ "$(uname -s)" = "Darwin" ]; then
+      if [ "$VERBOSE" -eq 1 ]; then
+        echo "Command: CC99='mpicc -std=c99' qcc -I../../src-local -Wall -O2 -D_MPI=1 -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} ../jumpingDrops_main.c -o jumpingDrops_main -lm"
+      fi
 
-    echo "Compiling main simulation phase ($SRC_MAIN)..."
-
-    if [ $MPI_ENABLED -eq 1 ]; then
-        # MPI parallel compilation
-        if [ "$OS_TYPE" = "Darwin" ]; then
-            # macOS
-            [ $VERBOSE -eq 1 ] && echo "Compiler: CC99='mpicc -std=c99' qcc"
-            [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
-            [ $VERBOSE -eq 1 ] && echo "Flags: -Wall -O2 -D_MPI=1 -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
-
-            CC99='mpicc -std=c99' qcc -I../../src-local \
-                -Wall -O2 -D_MPI=1 -disable-dimensions \
-                $DEBUG_FLAGS $QCC_FLAGS \
-                "$SRC_MAIN" -o "$EXEC_MAIN" -lm
-        else
-            # Linux
-            [ $VERBOSE -eq 1 ] && echo "Compiler: CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc"
-            [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
-            [ $VERBOSE -eq 1 ] && echo "Flags: -Wall -O2 -D_MPI=1 -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
-
-            CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc -I../../src-local \
-                -Wall -O2 -D_MPI=1 -disable-dimensions \
-                $DEBUG_FLAGS $QCC_FLAGS \
-                "$SRC_MAIN" -o "$EXEC_MAIN" -lm
-        fi
+      CC99='mpicc -std=c99' qcc -I../../src-local \
+        -Wall -O2 -D_MPI=1 -disable-dimensions \
+        ${DEBUG_FLAGS} ${QCC_FLAGS} \
+        ../jumpingDrops_main.c -o jumpingDrops_main -lm
     else
-        # Serial compilation
-        [ $VERBOSE -eq 1 ] && echo "Compiler: qcc (serial)"
-        [ $VERBOSE -eq 1 ] && echo "Include paths: -I../../src-local"
-        [ $VERBOSE -eq 1 ] && echo "Flags: -O2 -Wall -disable-dimensions $DEBUG_FLAGS $QCC_FLAGS"
+      if [ "$VERBOSE" -eq 1 ]; then
+        echo "Command: CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc -I../../src-local -Wall -O2 -D_MPI=1 -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} ../jumpingDrops_main.c -o jumpingDrops_main -lm"
+      fi
 
-        qcc -I../../src-local \
-            -O2 -Wall -disable-dimensions \
-            $DEBUG_FLAGS $QCC_FLAGS \
-            "$SRC_MAIN" -o "$EXEC_MAIN" -lm
+      CC99='mpicc -std=c99 -D_GNU_SOURCE=1' qcc -I../../src-local \
+        -Wall -O2 -D_MPI=1 -disable-dimensions \
+        ${DEBUG_FLAGS} ${QCC_FLAGS} \
+        ../jumpingDrops_main.c -o jumpingDrops_main -lm
+    fi
+  else
+    if [ "$VERBOSE" -eq 1 ]; then
+      echo "Command: qcc -I../../src-local -O2 -Wall -disable-dimensions ${DEBUG_FLAGS} ${QCC_FLAGS} ../jumpingDrops_main.c -o jumpingDrops_main -lm"
     fi
 
-    if [ $? -ne 0 ]; then
-        echo "ERROR: Compilation of main phase failed" >&2
-        exit 1
-    fi
-
-    echo "Compilation successful: $EXEC_MAIN"
-    echo ""
+    qcc -I../../src-local \
+      -O2 -Wall -disable-dimensions \
+      ${DEBUG_FLAGS} ${QCC_FLAGS} \
+      ../jumpingDrops_main.c -o jumpingDrops_main -lm
+  fi
 fi
 
-# Exit if compile-only mode
-if [ $COMPILE_ONLY -eq 1 ]; then
-    echo ""
-    echo "Compile-only mode: Stopping here"
-    cd ../..
-    exit 0
+if [ "$COMPILE_ONLY" -eq 1 ]; then
+  echo
+  echo "Compile-only mode: stopping before execution"
+  exit 0
 fi
 
-# ============================================================
-# Execution
-# ============================================================
-echo ""
+echo
 echo "========================================="
 echo "Execution"
 echo "========================================="
 
-# Parse parameters from case.params
-source "${SCRIPT_DIR}/src-local/parse_params.sh"
-parse_param_file "case.params"
-
-Oh=$(get_param "Oh")
-Bo=$(get_param "Bo")
-MAXlevel=$(get_param "MAXlevel")
-tmax=$(get_param "tmax")
-
-if [ -z "$Oh" ] || [ -z "$Bo" ] || [ -z "$MAXlevel" ]; then
-    echo "ERROR: Missing required parameters (Oh, Bo, MAXlevel) in case.params" >&2
-    exit 1
-fi
-
-echo "Parameters: Oh=$Oh, Bo=$Bo, MAXlevel=$MAXlevel"
-
-# Run initialization phase (if needed)
 if [ "$PHASE_MODE" = "init" ] || [ "$PHASE_MODE" = "both" ]; then
-    echo ""
-    echo "========================================="
-    echo "Phase 1: Initialization (STL → dumpInit)"
-    echo "========================================="
+  echo "Phase 1: Initialization (STL -> dumpInit)"
+  if [ "$VERBOSE" -eq 1 ]; then
+    echo "Command: ./jumpingDrops_init case.params"
+  fi
 
-    if [ -f "dumpInit" ]; then
-        echo "Warning: dumpInit already exists - will be overwritten"
-    fi
+  ./jumpingDrops_init case.params
 
-    echo "Command: ./jumpingDrops_init $Oh $Bo $MAXlevel"
-    ./jumpingDrops_init $Oh $Bo $MAXlevel
+  if [ ! -f "dumpInit" ]; then
+    echo "ERROR: dumpInit was not created" >&2
+    exit 1
+  fi
 
-    INIT_EXIT_CODE=$?
-
-    if [ $INIT_EXIT_CODE -ne 0 ]; then
-        echo "ERROR: Initialization phase failed with exit code $INIT_EXIT_CODE" >&2
-        cd ../..
-        exit $INIT_EXIT_CODE
-    fi
-
-    if [ ! -f "dumpInit" ]; then
-        echo "ERROR: dumpInit not created by initialization phase" >&2
-        cd ../..
-        exit 1
-    fi
-
-    # Copy dumpInit to dump for main phase
-    cp dumpInit dump
-    echo "Initialization phase completed successfully"
-    echo ""
+  cp dumpInit dump
 fi
 
-# Run main simulation phase (if needed)
 if [ "$PHASE_MODE" = "main" ] || [ "$PHASE_MODE" = "both" ]; then
-    echo ""
-    echo "========================================="
-    echo "Phase 2: Main Simulation"
-    echo "========================================="
+  if [ ! -f "dump" ]; then
+    echo "ERROR: dump file not found. Run the initialization phase first." >&2
+    exit 1
+  fi
 
-    # Check for dump file
-    if [ ! -f "dump" ]; then
-        echo "ERROR: dump file not found - run initialization phase first" >&2
-        cd ../..
-        exit 1
+  echo "Phase 2: Main Simulation"
+  if [ "$MPI_ENABLED" -eq 1 ]; then
+    if [ "$VERBOSE" -eq 1 ]; then
+      echo "Command: $MPI_LAUNCHER $MPI_LAUNCHER_NFLAG $MPI_CORES ./jumpingDrops_main case.params"
     fi
-
-    if [ -f "restart" ]; then
-        echo "Restart file found - simulation will resume from checkpoint"
+    "$MPI_LAUNCHER" "$MPI_LAUNCHER_NFLAG" "$MPI_CORES" ./jumpingDrops_main case.params
+  else
+    if [ "$VERBOSE" -eq 1 ]; then
+      echo "Command: ./jumpingDrops_main case.params"
     fi
-
-    # Get tmax
-    if [ -z "$tmax" ]; then
-        echo "ERROR: tmax not found in case.params" >&2
-        exit 1
-    fi
-
-    echo "Running main simulation: tmax=$tmax"
-    echo "Starting simulation..."
-    echo "========================================="
-
-    # Run simulation
-    if [ $MPI_ENABLED -eq 1 ]; then
-        [ $VERBOSE -eq 1 ] && echo "Command: mpirun -np $MPI_CORES ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel"
-        mpirun -np $MPI_CORES ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel
-    else
-        [ $VERBOSE -eq 1 ] && echo "Command: ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel"
-        ./jumpingDrops_main $tmax $Oh $Bo $MAXlevel
-    fi
-
-    EXIT_CODE=$?
-
-    echo "========================================="
-    if [ $EXIT_CODE -eq 0 ]; then
-        echo "Main simulation completed successfully"
-    else
-        echo "Main simulation failed with exit code $EXIT_CODE"
-    fi
-    echo "========================================="
+    ./jumpingDrops_main case.params
+  fi
 fi
 
-# Final summary
-echo ""
+echo
 echo "========================================="
 echo "Summary"
 echo "========================================="
-if [ "$PHASE_MODE" = "both" ]; then
-    echo "Completed both initialization and main simulation"
-    echo "Output location: $CASE_DIR"
-elif [ "$PHASE_MODE" = "init" ]; then
-    echo "Initialization phase completed"
-    echo "dumpInit created in: $CASE_DIR"
-elif [ "$PHASE_MODE" = "main" ]; then
-    echo "Main simulation completed"
-    echo "Output location: $CASE_DIR"
-fi
-echo "========================================="
-
-# Return to root directory
-cd ../..
-
-# Set final exit code
-FINAL_EXIT_CODE=0
-if [ "$PHASE_MODE" = "main" ] || [ "$PHASE_MODE" = "both" ]; then
-    FINAL_EXIT_CODE=${EXIT_CODE:-0}
-fi
-
-exit $FINAL_EXIT_CODE
+echo "Completed $PHASE_MODE phase(s) for case $CASE_NO"
+echo "Output location: $CASE_DIR"
