@@ -102,6 +102,22 @@ It sets `MPI_LAUNCHER=srun` and `MPI_LAUNCHER_NFLAG=-n` so the shared
 `runSimulation.sh` runner launches the main executable with `srun` instead of
 duplicating a separate HPC-only execution path.
 
+## Post-processing
+
+`postProcess/` holds the rendering and energy-diagnostic pipelines for the
+`intermediate/snapshot-*` outputs. Compile the Basilisk tools, then drive them
+across snapshots from a case directory:
+
+```bash
+source .project_config
+cd postProcess
+qcc -O2 -Wall -disable-dimensions getEnergy.c -o getEnergy -lm
+qcc -O2 -Wall -disable-dimensions getView3D_v2.c -o getView3D_v2 -L$BASILISK/gl -lglutils -lfb_tiny -lm
+```
+
+`run_energy.py` + `energy_budget.py` produce the energy budget; `render_frames.py`
+plus `ffmpeg` produce the video. See `postProcess/README.md` for details.
+
 ## Repository Structure
 
 ```
@@ -118,6 +134,13 @@ duplicating a separate HPC-only execution path.
 │   ├── JumpingDrops_legacy.c - preserved monolithic legacy source
 │   ├── jumpingDrops_init.c - STL-to-dumpInit initialization phase
 │   └── jumpingDrops_main.c - MPI-compatible main simulation phase
+├── postProcess/ - rendering and energy diagnostics for saved snapshots
+│   ├── getView3D_v2.c - render one snapshot to a PNG
+│   ├── render_frames.py - render every snapshot in parallel
+│   ├── getEnergy.c - energy diagnostics for one snapshot
+│   ├── run_energy.py - run getEnergy over all snapshots, assemble getEnergy.dat
+│   ├── energy_budget.py - assemble and plot the energy budget
+│   └── README.md - post-processing usage
 ├── src-local/ - shared headers and parameter parsing helpers
 │   ├── jumpingDrops_common.h - shared Basilisk constants, AMR logic, and events
 │   ├── params.h - typed runtime accessors for C entry points

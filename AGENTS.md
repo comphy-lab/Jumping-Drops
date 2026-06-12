@@ -4,6 +4,7 @@
 
 - `src-local/` holds shared Basilisk headers and parameter parsing helpers.
 - `simulationCases/` holds the active Basilisk entry points plus preserved legacy sources.
+- `postProcess/` holds the rendering and energy-diagnostic pipelines for `intermediate/snapshot-*` outputs; its `getEnergy.c` fluid properties must track `simulationCases/jumpingDrops_main.c`.
 - Root scripts are the primary user workflows: `runSimulation.sh`, `runParameterSweep.sh`, and `runSweepSnellius.sbatch`.
 - Root parameter files are `default.params` and `sweep.params`.
 
