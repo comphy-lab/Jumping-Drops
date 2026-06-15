@@ -81,7 +81,7 @@ and surface tension.
 - `tsnap2`: Interval for logging kinetic energy and velocity
 */
 #define tsnap (1e-2)                  // snapshot interval
-#define tsnap2 (1e-4)                 // log writing interval
+#define tsnap2 (1e-2)                 // log writing interval
 
 /**
 ## Adaptive Mesh Refinement Tolerances
