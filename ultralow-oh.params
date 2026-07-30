@@ -1,0 +1,12 @@
+# Bo=0 ultra-low-Oh extension for take-off energy analysis.
+#
+# Case mapping:
+#   1020: Oh=1e-4
+#   1021: Oh=1e-5
+#   1022: Oh=1e-6
+#   1023: Oh=0 (mu_liquid=mu_gas=0)
+BASE_CONFIG=ultralow-oh-default.params
+CASE_START=1020
+CASE_END=1023
+SWEEP_Oh=1e-4,1e-5,1e-6,0
+SWEEP_Bo=0

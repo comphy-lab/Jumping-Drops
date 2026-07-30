@@ -100,10 +100,10 @@ ensure accurate initial conditions and stable time integration.
 /**
 ## Fluid Properties (Dimensionless Ratios)
 
-- `Mu21`: Viscosity ratio (gas/liquid), typically O(10^-3)
+- `Mu21`: Dynamic-viscosity ratio (gas/liquid)
 - `Rho21`: Density ratio (gas/liquid), typically O(10^-3)
 */
-#define Mu21 (1.00e-3)                // viscosity ratio (gas/liquid)
+#define Mu21 (1.00e-2)                // dynamic-viscosity ratio (gas/liquid)
 #define Rho21 (1.00e-3)               // density ratio (gas/liquid)
 
 /**

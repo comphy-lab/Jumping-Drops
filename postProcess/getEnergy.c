@@ -26,8 +26,8 @@ dissipation rates.
 ## Fluid properties
 
 These must match `simulationCases/jumpingDrops_main.c`:
-`rho1 = 1`, `mu1 = Oh`, `rho2 = Rho21 = 1e-3`, `mu2 = 1e-5` (constant),
-`f.sigma = 1`. Note `mu2` is fixed at `1e-5`, not `Mu21*Oh`.
+`rho1 = 1`, `mu1 = Oh`, `rho2 = Rho21 = 1e-3`,
+`mu2 = Mu21*Oh` with `Mu21 = 1e-2`, and `f.sigma = 1`.
 */
 #include "grid/octree.h"
 #include "navier-stokes/centered.h"
@@ -38,7 +38,7 @@ double ke1, xcm, ucm, ycm, vcm, zcm, wcm, se, eps1, ke2, eps2, rho1, rho2, mu1, 
 char nameEnergy[80], nameOut[80];
 
 #define Rho21 (1.00e-3)   // density ratio gas/liquid (matches src-local/jumpingDrops_common.h)
-#define MU2   (1.00e-5)   // gas viscosity, constant (matches simulationCases/jumpingDrops_main.c)
+#define Mu21  (1.00e-2)   // dynamic-viscosity ratio gas/liquid
 
 int main(int a, char const *arguments[]) {
   sprintf(nameOut, "%s", arguments[1]);
@@ -50,7 +50,7 @@ int main(int a, char const *arguments[]) {
   restore (file = nameOut);
 
   rho1 = 1.0; mu1 = Oh;
-  rho2 = Rho21; mu2 = MU2;
+  rho2 = Rho21; mu2 = Mu21*Oh;
 
   // boundary conditions
   u.t[bottom] = dirichlet(0.);

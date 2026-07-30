@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
   rho1 = 1.0;                         // liquid density (normalized)
   mu1 = Oh;                           // liquid viscosity
   rho2 = Rho21;                       // gas density
-  mu2 = 1e-5;                         // gas viscosity (consistent with main)
+  mu2 = Mu21*Oh;                      // gas viscosity; zero in the Euler limit
   f.sigma = 1.0;                      // surface tension (normalized)
   G.y = -Bo;                          // gravity (CRITICAL: must match main phase)
 
