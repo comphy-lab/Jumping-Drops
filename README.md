@@ -110,6 +110,10 @@ then submit the same runner with a case identifier:
 sbatch --job-name=jd1020 --export=ALL,CASE_NO=1020 runCaseSnellius.sbatch
 ```
 
+The matched ultra-low-Oh take-off-energy campaigns use
+`ultralow-oh.params` at `MAXlevel=9` and `ultralow-oh-ml10.params` at
+`MAXlevel=10`.
+
 ## Post-processing
 
 `postProcess/` holds the rendering and energy-diagnostic pipelines for the

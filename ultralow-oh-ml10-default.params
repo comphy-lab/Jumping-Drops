@@ -1,0 +1,6 @@
+# Higher-resolution Bo=0 ultra-low-Oh campaign for take-off energy analysis.
+CaseNo=1030
+Oh=1e-4
+MAXlevel=10
+tmax=4.0
+Bo=0

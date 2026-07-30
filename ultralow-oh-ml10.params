@@ -1,0 +1,10 @@
+# Case mapping:
+#   1030: Oh=1e-4
+#   1031: Oh=1e-5
+#   1032: Oh=1e-6
+#   1033: Oh=0 (mu_liquid=mu_gas=0)
+BASE_CONFIG=ultralow-oh-ml10-default.params
+CASE_START=1030
+CASE_END=1033
+SWEEP_Oh=1e-4,1e-5,1e-6,0
+SWEEP_Bo=0
