@@ -102,6 +102,14 @@ It sets `MPI_LAUNCHER=srun` and `MPI_LAUNCHER_NFLAG=-n` so the shared
 `runSimulation.sh` runner launches the main executable with `srun` instead of
 duplicating a separate HPC-only execution path.
 
+For individually scheduled 3D production cases, stage
+`sweep_cases/case_<CaseNo>.params` and `simulationCases/<CaseNo>/dumpInit`,
+then submit the same runner with a case identifier:
+
+```bash
+sbatch --job-name=jd1020 --export=ALL,CASE_NO=1020 runCaseSnellius.sbatch
+```
+
 ## Post-processing
 
 `postProcess/` holds the rendering and energy-diagnostic pipelines for the
