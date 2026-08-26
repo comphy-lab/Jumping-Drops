@@ -5,7 +5,9 @@ Diagnostics and visualisation for the snapshots written by
 
 Two independent pipelines:
 
-- **Rendering** (`getView3D_v2.c` + `render_frames.py`) - one PNG per snapshot, encoded to a video.
+- **Rendering** (`getView3D_v3.c` + `render_frames_mpi.py`) - MPI restore,
+  rendering and composition within each frame, with multiple frames rendered
+  concurrently. The serial `v2` pathway remains available for comparison.
 - **Energy** (`getEnergy.c` + `run_energy.py` + `energy_budget.py`) - per-snapshot energy diagnostics and the assembled budget plot.
 
 Both Basilisk tools read snapshots directly; the Python drivers only fan the
@@ -15,8 +17,11 @@ work across snapshots and assemble the outputs.
 
 ```
 postProcess/
-├── getView3D_v2.c   - Basilisk: render one snapshot to a PNG
-├── render_frames.py - driver: render every snapshot in parallel
+├── getView3D_v2.c       - Basilisk: serial reference renderer
+├── getView3D_v3.c       - Basilisk: MPI renderer producing rank-zero PPM
+├── render_frames.py     - legacy serial-frame driver
+├── render_frames_mpi.py - MPI renderer with parallel frame lanes
+├── render_frames_mpi.sbatch - one-node Snellius MPI render sweep
 ├── getEnergy.c      - Basilisk: energy diagnostics for one snapshot
 ├── run_energy.py    - driver: run getEnergy over every snapshot, assemble getEnergy.dat
 └── energy_budget.py - assemble + plot the energy budget from getEnergy.dat
