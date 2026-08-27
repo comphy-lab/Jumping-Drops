@@ -13,7 +13,8 @@ directly at runtime.
 ## Requirements
 
 - Basilisk with `qcc` available on `PATH`
-- MPI tools (`mpicc`, `mpirun`, `srun`) for parallel main runs
+- MPI tools (`mpicc`, `mpirun`, and `srun`) for parallel main runs and
+  distributed 3D rendering
 - A local `.project_config` file
 
 Setup the local Basilisk path by copying and editing the example if needed:
@@ -124,11 +125,15 @@ across snapshots from a case directory:
 source .project_config
 cd postProcess
 qcc -O2 -Wall -disable-dimensions getEnergy.c -o getEnergy -lm
-qcc -O2 -Wall -disable-dimensions getView3D_v2.c -o getView3D_v2 -L$BASILISK/gl -lglutils -lfb_tiny -lm
+CC99='mpicc -std=c99 -D_GNU_SOURCE=1' \
+  qcc -O2 -Wall -D_MPI=1 -disable-dimensions getView3D_v3.c \
+  -o getView3D_v3 -L"$BASILISK/gl" -lglutils -lfb_tiny -lm
 ```
 
-`run_energy.py` + `energy_budget.py` produce the energy budget; `render_frames.py`
-plus `ffmpeg` produce the video. See `postProcess/README.md` for details.
+`run_energy.py` + `energy_budget.py` produce the energy budget;
+`render_frames_mpi.py` + `ffmpeg` produce the parallel MPI video. The serial
+`getView3D_v2.c` and `render_frames.py` remain available as a regression
+reference. See `postProcess/README.md` for the MPI rank and memory workflow.
 
 ## Repository Structure
 
@@ -147,8 +152,11 @@ plus `ffmpeg` produce the video. See `postProcess/README.md` for details.
 │   ├── jumpingDrops_init.c - STL-to-dumpInit initialization phase
 │   └── jumpingDrops_main.c - MPI-compatible main simulation phase
 ├── postProcess/ - rendering and energy diagnostics for saved snapshots
-│   ├── getView3D_v2.c - render one snapshot to a PNG
-│   ├── render_frames.py - render every snapshot in parallel
+│   ├── getView3D_v2.c - serial reference renderer
+│   ├── getView3D_v3.c - MPI renderer for one snapshot
+│   ├── render_frames.py - legacy serial-frame driver
+│   ├── render_frames_mpi.py - MPI renderer with resumable frame lanes
+│   ├── render_frames_mpi.sbatch - Snellius MPI batch wrapper
 │   ├── getEnergy.c - energy diagnostics for one snapshot
 │   ├── run_energy.py - run getEnergy over all snapshots, assemble getEnergy.dat
 │   ├── energy_budget.py - assemble and plot the energy budget
