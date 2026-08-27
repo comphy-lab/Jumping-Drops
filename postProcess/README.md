@@ -128,9 +128,14 @@ The batch wrapper compiles the renderer once and assembles the video after
 every frame has succeeded:
 
 ```bash
-sbatch --export=ALL,CASE_ID=<CaseNo>,POST_DIR=<post-process-directory> \
+sbatch --export=ALL,ROOT=<repository-root>,CASE_ID=<CaseNo>,POST_DIR=<post-process-directory> \
   postProcess/render_frames_mpi.sbatch
 ```
+
+Submit from the repository root. Slurm writes `mpi-render-<job-name>-<job-id>`
+logs in the submission directory; `ROOT` is required so the batch job always
+copies renderer sources from the submitted checkout rather than a stale or
+machine-specific campaign path.
 
 Submit separate case jobs when cases should render concurrently. Use
 `--cpus 2` only when the allocation contains two complete frame groups. For

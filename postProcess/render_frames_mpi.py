@@ -45,7 +45,7 @@ SNAPSHOT_TIMES = {
 def snapshot_time(path: str) -> float | None:
     """Return the physical time encoded at the end of a snapshot path."""
 
-    match = re.search(r"snapshot-([0-9.]+)$", path)
+    match = re.search(r"snapshot-([0-9]+(?:\.[0-9]+)?)$", path)
     return float(match.group(1)) if match else None
 
 

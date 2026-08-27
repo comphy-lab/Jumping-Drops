@@ -12,12 +12,12 @@
 set -euo pipefail
 
 : "${CASE_ID:?submit with --export=ALL,CASE_ID=<case>}"
+: "${ROOT:?submit with --export=ALL,ROOT=<repository-root>,CASE_ID=<case>}"
 [[ "${CASE_ID}" =~ ^[0-9]+$ ]] || {
   echo "CASE_ID must contain digits only" >&2
   exit 2
 }
 
-ROOT=${ROOT:-/projects/0/nctt0620/vatsal/Jumping-Drops-ultralow-oh-ml10-20260730}
 CASE_DIR="${ROOT}/simulationCases/${CASE_ID}"
 POST_DIR=${POST_DIR:-"${ROOT}/postprocess/${CASE_ID}-mpi-render"}
 FRAME_WORKERS=${FRAME_WORKERS:-1}
@@ -44,7 +44,8 @@ CC99='mpicc -std=c99 -D_GNU_SOURCE=1' \
   qcc -O2 -Wall -D_MPI=1 -disable-dimensions getView3D_v3.c \
   -o getView3D_v3 -L"${BASILISK}/gl" -lglutils -lfb_tiny -lm
 
-SNAPSHOTS=$(find -L intermediate -maxdepth 1 -type f -name 'snapshot-*' | wc -l)
+SNAPSHOTS=$(find -L intermediate -regextype posix-extended -maxdepth 1 \
+  -type f -regex '.*/snapshot-[0-9]+(\.[0-9]+)?' | wc -l)
 echo "MPI_RENDER_START|$(date -Is)|case=${CASE_ID}|snapshots=${SNAPSHOTS}|workers=${FRAME_WORKERS}|ranks_per_frame=${MPI_RANKS_PER_FRAME}"
 
 export FRAME_WORKERS MPI_RANKS_PER_FRAME MPI_NODES_PER_FRAME
@@ -71,14 +72,21 @@ if [[ "${VALIDATION_ONLY:-0}" == 1 ]]; then
   exit 0
 fi
 
+if [[ -n "${SNAPSHOT_TIMES:-}" ]]; then
+  echo "MPI_RENDER_SUBSET_DONE|$(date -Is)|case=${CASE_ID}|snapshots=${SNAPSHOT_TIMES}"
+  exit 0
+fi
+
+FRAMES=$(find "${FRAME_FOLDER}" -regextype posix-extended -maxdepth 1 \
+  -type f -regex '.*/[0-9]+\.png' | wc -l)
+test "${FRAMES}" -eq "${SNAPSHOTS}"
+
 VIDEO_TMP="video_${CASE_ID}.tmp.mp4"
 ffmpeg -y -threads 8 -framerate 50 -pattern_type glob \
   -i "${FRAME_FOLDER}/*.png" -c:v libx264 -pix_fmt yuv420p \
   -movflags +faststart "${VIDEO_TMP}" > "ffmpeg_${CASE_ID}.log" 2>&1
 mv -f "${VIDEO_TMP}" "video_${CASE_ID}.mp4"
 
-FRAMES=$(find "${FRAME_FOLDER}" -maxdepth 1 -type f -name '*.png' | wc -l)
 VIDEO_BYTES=$(stat -c%s "video_${CASE_ID}.mp4")
-test "${FRAMES}" -eq "${SNAPSHOTS}"
 test "${VIDEO_BYTES}" -gt 0
 echo "MPI_RENDER_DONE|$(date -Is)|case=${CASE_ID}|frames=${FRAMES}|video_bytes=${VIDEO_BYTES}"
