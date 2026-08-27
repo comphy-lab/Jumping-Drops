@@ -37,6 +37,10 @@ Use `mpirun` or `srun` for parallel execution on HPC systems.
 The `MPI_MODE` macro is defined before including the common header to enable
 MPI-aware logging (only rank 0 writes to files).
 
+For an explicitly zero-Bond-number restart, compile with
+`-DNO_REDUCED_GRAVITY=1`. This removes the reduced-gravity event while keeping
+surface tension through `tension.h`; the executable rejects nonzero `Bo`.
+
 ## Author
 
 Vatsal Sanjay (vatsal.sanjay@comphy-lab.org)
@@ -53,7 +57,9 @@ Includes shared constants, tolerances, and helper functions.
 */
 
 #include "jumpingDrops_common.h"
+#ifndef NO_REDUCED_GRAVITY
 #include "reduced.h"                  // Reduced gravity model (provides coord G)
+#endif
 #include "params.h"
 
 /**
@@ -84,6 +90,15 @@ int main(int argc, char *argv[]) {
   Bo = param_double("Bo", 1e-3);
   MAXlevel = param_int("MAXlevel", 10);
 
+#ifdef NO_REDUCED_GRAVITY
+  if (Bo != 0.) {
+    fprintf(ferr,
+            "ERROR: NO_REDUCED_GRAVITY requires Bo=0, received Bo=%g\n",
+            Bo);
+    return 2;
+  }
+#endif
+
   // Initialize grid
   init_grid (1 << MINlevel);
   L0 = Ldomain;
@@ -107,7 +122,9 @@ int main(int argc, char *argv[]) {
   rho2 = Rho21;                       // gas density
   mu2 = Mu21*Oh;                      // gas viscosity; zero in the Euler limit
   f.sigma = 1.0;                      // surface tension (normalized)
+#ifndef NO_REDUCED_GRAVITY
   G.y = -Bo;                          // gravity (CRITICAL FIX: was missing!)
+#endif
 
   // Create intermediate directory for snapshots
   char comm[80];
