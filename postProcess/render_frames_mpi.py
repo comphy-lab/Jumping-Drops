@@ -18,12 +18,13 @@ serial-render directory.
 
 from __future__ import annotations
 
-import glob
 import argparse
+import glob
 import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import uuid
 
@@ -35,6 +36,7 @@ MEMORY_PER_FRAME = os.environ.get("MPI_MEMORY_PER_FRAME", "125G")
 NODES_PER_FRAME = int(os.environ.get("MPI_NODES_PER_FRAME", "1"))
 TASKS_PER_NODE = int(os.environ.get("MPI_TASKS_PER_NODE", str(RANKS_PER_FRAME)))
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
+MANIFEST = FOLDER / "frames.ffconcat"
 SNAPSHOT_TIMES = {
     float(value)
     for value in re.split(r"[,;:]", os.environ.get("SNAPSHOT_TIMES", ""))
@@ -60,6 +62,49 @@ def is_complete_png(path: Path) -> bool:
             return stream.read(8)[4:] == b"IEND"
     except (OSError, ValueError):
         return False
+
+
+def write_frame_manifest(jobs: list[tuple[str, Path]]) -> None:
+    """Atomically write the canonical ffmpeg input list for completed frames."""
+
+    temporary = MANIFEST.with_name(f".{MANIFEST.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8") as stream:
+            stream.write("ffconcat version 1.0\n")
+            for _, output in jobs:
+                stream.write(f"file '{output.name}'\n")
+        os.replace(temporary, MANIFEST)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def validate_frame_manifest() -> int:
+    """Validate manifest syntax and PNG completeness, then print its frame count."""
+
+    try:
+        lines = MANIFEST.read_text(encoding="utf-8").splitlines()
+    except OSError as error:
+        print(f"manifest error: {error}", file=sys.stderr)
+        return 1
+    if not lines or lines[0] != "ffconcat version 1.0":
+        print("manifest error: missing ffconcat header", file=sys.stderr)
+        return 1
+    names = []
+    for line in lines[1:]:
+        match = re.fullmatch(r"file '([0-9]+\.png)'", line)
+        if not match:
+            print(f"manifest error: invalid entry {line!r}", file=sys.stderr)
+            return 1
+        names.append(match.group(1))
+    if not names or len(names) != len(set(names)):
+        print("manifest error: empty or duplicate frame set", file=sys.stderr)
+        return 1
+    for name in names:
+        if not is_complete_png(FOLDER / name):
+            print(f"manifest error: incomplete PNG {name}", file=sys.stderr)
+            return 1
+    print(len(names))
+    return 0
 
 
 def render(job: tuple[str, Path]) -> tuple[str, Path, str]:
@@ -146,7 +191,13 @@ def main(argv: list[str] | None = None) -> int:
         "--skip-video", action="store_true",
         help="accepted for post-processing compatibility; this driver never encodes video",
     )
+    parser.add_argument(
+        "--validate-manifest", action="store_true",
+        help="validate the canonical ffmpeg manifest and print its frame count",
+    )
     args = parser.parse_args(argv)
+    if args.validate_manifest:
+        return validate_frame_manifest()
     if args.cpus <= 0:
         parser.error("--cpus must be greater than zero")
     if args.max_frames is not None and args.max_frames <= 0:
@@ -207,6 +258,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     for output, detail in failures[:10]:
         print(f"FAIL {output}: {detail}", flush=True)
+    if not failures:
+        write_frame_manifest(jobs)
+        print(f"manifest={MANIFEST}", flush=True)
     return 1 if failures else 0
 
 

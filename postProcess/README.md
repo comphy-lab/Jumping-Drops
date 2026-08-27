@@ -145,8 +145,10 @@ the inner `srun` step and must not exceed the batch allocation's `--mem`.
 The driver rejects rank/node oversubscription before launching work.
 
 The workflow is resumable: valid existing PNGs are skipped, incomplete output
-is replaced through a temporary file, and the MP4 is created only after the
-full snapshot set is present. For a small driver check, use:
+is replaced through a temporary file, and the MP4 is created only after every
+canonical frame in `frames.ffconcat` passes the PNG completeness check. Stale
+or unrelated numeric PNGs are never included in the video. For a small driver
+check, use:
 
 ```bash
 python3 render_frames_mpi.py --help

@@ -77,13 +77,12 @@ if [[ -n "${SNAPSHOT_TIMES:-}" ]]; then
   exit 0
 fi
 
-FRAMES=$(find "${FRAME_FOLDER}" -regextype posix-extended -maxdepth 1 \
-  -type f -regex '.*/[0-9]+\.png' | wc -l)
+FRAMES=$(python3 render_frames_mpi.py --validate-manifest)
 test "${FRAMES}" -eq "${SNAPSHOTS}"
 
 VIDEO_TMP="video_${CASE_ID}.tmp.mp4"
-ffmpeg -y -threads 8 -framerate 50 -pattern_type glob \
-  -i "${FRAME_FOLDER}/*.png" -c:v libx264 -pix_fmt yuv420p \
+ffmpeg -y -threads 8 -r 50 -f concat -safe 0 \
+  -i "${FRAME_FOLDER}/frames.ffconcat" -c:v libx264 -pix_fmt yuv420p \
   -movflags +faststart "${VIDEO_TMP}" > "ffmpeg_${CASE_ID}.log" 2>&1
 mv -f "${VIDEO_TMP}" "video_${CASE_ID}.mp4"
 
