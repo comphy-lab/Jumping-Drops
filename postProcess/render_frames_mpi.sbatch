@@ -6,8 +6,8 @@
 #SBATCH --mem=260G
 #SBATCH --time=24:00:00
 #SBATCH --partition=genoa
-#SBATCH --output=/projects/0/nctt0620/vatsal/Jumping-Drops-ultralow-oh-ml10-20260730/postprocess/_logs/mpi-render-%x-%j.out
-#SBATCH --error=/projects/0/nctt0620/vatsal/Jumping-Drops-ultralow-oh-ml10-20260730/postprocess/_logs/mpi-render-%x-%j.err
+#SBATCH --output=mpi-render-%x-%j.out
+#SBATCH --error=mpi-render-%x-%j.err
 
 set -euo pipefail
 
@@ -25,7 +25,7 @@ MPI_RANKS_PER_FRAME=${MPI_RANKS_PER_FRAME:-48}
 MPI_NODES_PER_FRAME=${MPI_NODES_PER_FRAME:-2}
 MPI_TASKS_PER_NODE=${MPI_TASKS_PER_NODE:-24}
 MPI_MEMORY_PER_FRAME=${MPI_MEMORY_PER_FRAME:-250G}
-FRAME_FOLDER=${FRAME_FOLDER:-Video_view3_v2}
+FRAME_FOLDER=${FRAME_FOLDER:-Video_view3_v3}
 
 test -d "${CASE_DIR}/intermediate"
 mkdir -p "${POST_DIR}" "${ROOT}/postprocess/_logs"

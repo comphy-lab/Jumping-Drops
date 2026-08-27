@@ -13,7 +13,8 @@ directly at runtime.
 ## Requirements
 
 - Basilisk with `qcc` available on `PATH`
-- MPI tools (`mpicc`, `mpirun`, `srun`) for parallel main runs
+- MPI tools (`mpicc`, `mpirun`, and `srun`) for parallel main runs and
+  distributed 3D rendering
 - A local `.project_config` file
 
 Setup the local Basilisk path by copying and editing the example if needed:

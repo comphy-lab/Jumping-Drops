@@ -11,8 +11,9 @@ Run inside a Slurm allocation from a case post-processing directory:
 MPI_RANKS_PER_FRAME=12 python3 render_frames_mpi.py --cpus 2
 ```
 
-The default output remains `Video_view3_v2` so an MPI sweep can resume the
-existing serial-render directory and feed the unchanged video encoder.
+The default output is `Video_view3_v3`; set `FRAME_FOLDER=Video_view3_v2`
+explicitly only when intentionally resuming or comparing against a legacy
+serial-render directory.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import uuid
 
 
-FOLDER = Path(os.environ.get("FRAME_FOLDER", "Video_view3_v2"))
+FOLDER = Path(os.environ.get("FRAME_FOLDER", "Video_view3_v3"))
 EXE = os.environ.get("RENDER_EXE", "./getView3D_v3")
 RANKS_PER_FRAME = int(os.environ.get("MPI_RANKS_PER_FRAME", "12"))
 MEMORY_PER_FRAME = os.environ.get("MPI_MEMORY_PER_FRAME", "125G")

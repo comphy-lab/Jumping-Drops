@@ -30,6 +30,7 @@ postProcess/
 ## Requirements
 
 - Basilisk with `qcc` on `PATH` (`source .project_config`).
+- MPI tools (`mpicc` and `srun`) for distributed restore/rendering.
 - For rendering: the Basilisk GL libraries (`$BASILISK/gl/libglutils.a`, `libfb_tiny.a`); rendering is headless (offscreen framebuffer).
 - For the video: `ffmpeg`. On Snellius: `module load 2024 FFmpeg/7.0.2-GCCcore-13.3.0`.
 - For the budget plot: Python 3 with `numpy` and `matplotlib`.
@@ -96,6 +97,10 @@ It restores the octree collectively, draws local cells on every rank, and
 lets Basilisk compose the colour/depth buffers on rank zero. The renderer
 writes PPM, Basilisk View's MPI-safe image format; the Python driver converts
 each completed PPM to PNG and renames it atomically.
+
+MPI output defaults to `Video_view3_v3`, keeping it separate from the
+`Video_view3_v2` serial reference. Point `FRAME_FOLDER` at the legacy folder
+only for an intentional comparison or resumable migration.
 
 Compile the renderer with an MPI C compiler:
 
