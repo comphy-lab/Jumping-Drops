@@ -8,7 +8,7 @@ cancelled sweep resumes without rewriting finished frames.
 Run inside a Slurm allocation from a case post-processing directory:
 
 ```bash
-MPI_RANKS_PER_FRAME=12 FRAME_WORKERS=2 python3 render_frames_mpi.py
+MPI_RANKS_PER_FRAME=12 python3 render_frames_mpi.py --cpus 2
 ```
 
 The default output remains `Video_view3_v2` so an MPI sweep can resume the
@@ -18,6 +18,7 @@ existing serial-render directory and feed the unchanged video encoder.
 from __future__ import annotations
 
 import glob
+import argparse
 import os
 from pathlib import Path
 import re
@@ -29,7 +30,6 @@ import uuid
 FOLDER = Path(os.environ.get("FRAME_FOLDER", "Video_view3_v2"))
 EXE = os.environ.get("RENDER_EXE", "./getView3D_v3")
 RANKS_PER_FRAME = int(os.environ.get("MPI_RANKS_PER_FRAME", "12"))
-FRAME_WORKERS = int(os.environ.get("FRAME_WORKERS", "2"))
 MEMORY_PER_FRAME = os.environ.get("MPI_MEMORY_PER_FRAME", "125G")
 NODES_PER_FRAME = int(os.environ.get("MPI_NODES_PER_FRAME", "1"))
 TASKS_PER_NODE = int(os.environ.get("MPI_TASKS_PER_NODE", str(RANKS_PER_FRAME)))
@@ -106,33 +106,53 @@ def render(job: tuple[str, Path]) -> tuple[str, Path, str]:
         png.unlink(missing_ok=True)
 
 
-def validate_allocation() -> None:
+def validate_allocation(frame_workers: int) -> None:
     """Reject configurations that oversubscribe the Slurm allocation."""
 
-    if min(RANKS_PER_FRAME, FRAME_WORKERS, NODES_PER_FRAME, TASKS_PER_NODE) < 1:
+    if min(RANKS_PER_FRAME, frame_workers, NODES_PER_FRAME, TASKS_PER_NODE) < 1:
         raise SystemExit("MPI render ranks, workers, nodes and tasks per node must be positive")
     if TASKS_PER_NODE * NODES_PER_FRAME != RANKS_PER_FRAME:
         raise SystemExit("MPI_TASKS_PER_NODE * MPI_NODES_PER_FRAME must equal MPI_RANKS_PER_FRAME")
     if not re.fullmatch(r"[1-9][0-9]*[KMGTP]?", MEMORY_PER_FRAME):
         raise SystemExit("MPI_MEMORY_PER_FRAME must be a Slurm memory value such as 125G")
     allocated = int(os.environ.get("SLURM_NTASKS", "0"))
-    required = RANKS_PER_FRAME * FRAME_WORKERS
+    required = RANKS_PER_FRAME * frame_workers
     if allocated and required > allocated:
         raise SystemExit(
             f"render lanes need {required} ranks but SLURM_NTASKS={allocated}"
         )
     allocated_nodes = int(os.environ.get("SLURM_NNODES", "0"))
-    required_nodes = NODES_PER_FRAME * FRAME_WORKERS
+    required_nodes = NODES_PER_FRAME * frame_workers
     if allocated_nodes and required_nodes > allocated_nodes:
         raise SystemExit(
             f"render lanes need {required_nodes} nodes but SLURM_NNODES={allocated_nodes}"
         )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Render every available snapshot and report resumable progress."""
 
-    validate_allocation()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--cpus", "--CPUs", dest="cpus", type=int, default=4,
+        help="number of concurrent MPI frame lanes (default: 4)",
+    )
+    parser.add_argument(
+        "--max-frames", type=int, default=None,
+        help="process only the first N snapshots",
+    )
+    parser.add_argument(
+        "--skip-video", action="store_true",
+        help="accepted for post-processing compatibility; this driver never encodes video",
+    )
+    args = parser.parse_args(argv)
+    if args.cpus <= 0:
+        parser.error("--cpus must be greater than zero")
+    if args.max_frames is not None and args.max_frames <= 0:
+        parser.error("--max-frames must be greater than zero")
+
+    frame_workers = args.cpus
+    validate_allocation(frame_workers)
     FOLDER.mkdir(parents=True, exist_ok=True)
     snapshots = sorted(
         glob.glob("intermediate/snapshot-*"),
@@ -151,6 +171,8 @@ def main() -> int:
                 f"requested {len(SNAPSHOT_TIMES)} snapshot times but found "
                 f"{len(snapshots)}: {found}"
             )
+    if args.max_frames is not None:
+        snapshots = snapshots[:args.max_frames]
     jobs = []
     for snapshot in snapshots:
         time = snapshot_time(snapshot)
@@ -159,13 +181,13 @@ def main() -> int:
             jobs.append((snapshot, output))
 
     print(
-        f"snapshots={len(jobs)} workers={FRAME_WORKERS} "
+        f"snapshots={len(jobs)} workers={frame_workers} "
         f"ranks_per_frame={RANKS_PER_FRAME}",
         flush=True,
     )
     counts = {"ok": 0, "skip": 0, "FAIL": 0}
     failures = []
-    with ThreadPoolExecutor(max_workers=FRAME_WORKERS) as pool:
+    with ThreadPoolExecutor(max_workers=frame_workers) as pool:
         futures = [pool.submit(render, job) for job in jobs]
         for completed, future in enumerate(as_completed(futures), start=1):
             status, output, detail = future.result()

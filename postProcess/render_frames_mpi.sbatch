@@ -49,7 +49,7 @@ echo "MPI_RENDER_START|$(date -Is)|case=${CASE_ID}|snapshots=${SNAPSHOTS}|worker
 
 export FRAME_WORKERS MPI_RANKS_PER_FRAME MPI_NODES_PER_FRAME
 export MPI_TASKS_PER_NODE MPI_MEMORY_PER_FRAME FRAME_FOLDER
-python3 render_frames_mpi.py
+python3 render_frames_mpi.py --cpus "${FRAME_WORKERS}" --skip-video
 
 if [[ "${VALIDATION_ONLY:-0}" == 1 ]]; then
   REFERENCE_FOLDER=${REFERENCE_FOLDER:-Video_view3_v2}

@@ -21,9 +21,9 @@ postProcess/
 ├── getView3D_v3.c       - Basilisk: MPI renderer producing rank-zero PPM
 ├── render_frames.py     - legacy serial-frame driver
 ├── render_frames_mpi.py - MPI renderer with parallel frame lanes
-├── render_frames_mpi.sbatch - one-node Snellius MPI render sweep
-├── getEnergy.c      - Basilisk: energy diagnostics for one snapshot
-├── run_energy.py    - driver: run getEnergy over every snapshot, assemble getEnergy.dat
+├── render_frames_mpi.sbatch - two-node Snellius MPI render sweep
+├── getEnergy.c           - Basilisk: energy diagnostics for one snapshot
+├── run_energy.py         - driver: run getEnergy over every snapshot, assemble getEnergy.dat
 └── energy_budget.py - assemble + plot the energy budget from getEnergy.dat
 ```
 
@@ -89,11 +89,73 @@ ffmpeg -y -framerate 50 -pattern_type glob -i "Video_view3_v2/*.png" \
 
 Frame indices are `int(1e4 * t)` zero-padded, so the glob is already in time order.
 
+### Parallel MPI 3D rendering
+
+`getView3D_v3.c` is the MPI renderer for large three-dimensional snapshots.
+It restores the octree collectively, draws local cells on every rank, and
+lets Basilisk compose the colour/depth buffers on rank zero. The renderer
+writes PPM, Basilisk View's MPI-safe image format; the Python driver converts
+each completed PPM to PNG and renames it atomically.
+
+Compile the renderer with an MPI C compiler:
+
+```bash
+source .project_config
+CC99='mpicc -std=c99 -D_GNU_SOURCE=1' \
+  qcc -O2 -Wall -D_MPI=1 -disable-dimensions getView3D_v3.c \
+  -o getView3D_v3 -L"$BASILISK/gl" -lglutils -lfb_tiny -lm
+```
+
+For a Slurm allocation, the driver uses one MPI step per snapshot. `--cpus`
+controls the number of concurrent frame lanes, not the number of MPI ranks in
+one frame. The latter is set with `MPI_RANKS_PER_FRAME`; the node layout is
+set with `MPI_NODES_PER_FRAME` and `MPI_TASKS_PER_NODE`:
+
+```bash
+MPI_RANKS_PER_FRAME=48 \
+MPI_NODES_PER_FRAME=2 \
+MPI_TASKS_PER_NODE=24 \
+MPI_MEMORY_PER_FRAME=250G \
+python3 render_frames_mpi.py --cpus 1 --skip-video
+```
+
+The batch wrapper compiles the renderer once and assembles the video after
+every frame has succeeded:
+
+```bash
+sbatch --export=ALL,CASE_ID=<CaseNo>,POST_DIR=<post-process-directory> \
+  postProcess/render_frames_mpi.sbatch
+```
+
+Submit separate case jobs when cases should render concurrently. Use
+`--cpus 2` only when the allocation contains two complete frame groups. For
+large late-time dumps, one two-node frame lane per allocation is the safe
+configuration. In Slurm, `MPI_MEMORY_PER_FRAME` is memory **per node** for
+the inner `srun` step and must not exceed the batch allocation's `--mem`.
+The driver rejects rank/node oversubscription before launching work.
+
+The workflow is resumable: valid existing PNGs are skipped, incomplete output
+is replaced through a temporary file, and the MP4 is created only after the
+full snapshot set is present. For a small driver check, use:
+
+```bash
+python3 render_frames_mpi.py --help
+python3 render_frames_mpi.py --cpus 1 --max-frames 4 --skip-video
+python3 render_frames_mpi.py --cpus 4 --max-frames 4 --skip-video
+```
+
+Compare MPI output against `getView3D_v2` for at least one common snapshot
+before a production sweep. The serial renderer remains the visual regression
+reference; the MPI renderer should preserve the camera, mirrored geometry,
+field colouring, mesh overlay, and time label.
+
 ## HPC note
 
-Rendering and energy extraction are serial per snapshot, so the drivers
-parallelise across snapshots with a process pool. On Snellius, run them from a
-single-node batch job (set `NPROC` to the available cores) rather than on a
-login node. The fluid properties baked into `getEnergy.c` must match
+Energy extraction remains serial per snapshot, so `run_energy.py` parallelises
+across snapshots with a process pool. The MPI renderer parallelises the
+restore and drawing of each frame, and can also run independent frame lanes
+when the allocation has enough complete MPI groups. On Snellius, run both
+drivers from a batch job rather than on a login node. The fluid properties
+baked into `getEnergy.c` must match
 `simulationCases/jumpingDrops_main.c` (`rho1=1`, `mu1=Oh`, `rho2=1e-3`,
 `mu2=1e-5`, `sigma=1`).
