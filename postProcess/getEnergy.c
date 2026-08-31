@@ -29,25 +29,37 @@ These must match `simulationCases/jumpingDrops_main.c`:
 `rho1 = 1`, `mu1 = Oh`, `rho2 = Rho21 = 1e-3`,
 `mu2 = Mu21*Oh` with `Mu21 = 1e-2`, and `f.sigma = 1`.
 */
+#include <string.h>
+#include <stdlib.h>
+#include <limits.h>
+
 #include "grid/octree.h"
 #include "navier-stokes/centered.h"
 #include "fractions.h"
 
 scalar f[];
 double ke1, xcm, ucm, ycm, vcm, zcm, wcm, se, eps1, ke2, eps2, rho1, rho2, mu1, mu2;
-char nameEnergy[80], nameOut[80];
+char nameEnergy[PATH_MAX], nameOut[PATH_MAX];
 
 #define Rho21 (1.00e-3)   // density ratio gas/liquid (matches src-local/jumpingDrops_common.h)
 #define Mu21  (1.00e-2)   // dynamic-viscosity ratio gas/liquid
 
-int main(int a, char const *arguments[]) {
-  sprintf(nameOut, "%s", arguments[1]);
-  sprintf(nameEnergy, "%s", arguments[2]);
+int main(int argc, char const *arguments[]) {
+  if (argc < 4) {
+    if (pid() == 0)
+      fprintf (stderr, "usage: %s snapshot output.dat Oh\n", arguments[0]);
+    return 1;
+  }
+
+  snprintf (nameOut, sizeof(nameOut), "%s", arguments[1]);
+  snprintf (nameEnergy, sizeof(nameEnergy), "%s", arguments[2]);
   double Oh = atof(arguments[3]);
 
-  FILE *fp;
-  fp = fopen (nameEnergy, "a");
-  restore (file = nameOut);
+  if (!restore (file = nameOut)) {
+    if (pid() == 0)
+      fprintf (stderr, "could not restore '%s'\n", nameOut);
+    return 2;
+  }
 
   rho1 = 1.0; mu1 = Oh;
   rho2 = Rho21; mu2 = Mu21*Oh;
@@ -68,7 +80,10 @@ int main(int a, char const *arguments[]) {
   double sumX = 0.; double sumY = 0.; double sumZ = 0.;
   double wt = 0.;
 
-  foreach (){
+  foreach (reduction(+:ke1) reduction(+:ke2)
+           reduction(+:sumU) reduction(+:sumV) reduction(+:sumW)
+           reduction(+:sumX) reduction(+:sumY) reduction(+:sumZ)
+           reduction(+:wt) reduction(+:eps1) reduction(+:eps2)) {
     ke1 += (0.5*clamp(f[], 0., 1.)*rho1*(sq(u.x[]) + sq(u.y[]) + sq(u.z[])))*cube(Delta);
     ke2 += (0.5*clamp(1.-f[], 0., 1.)*rho2*(sq(u.x[]) + sq(u.y[]) + sq(u.z[])))*cube(Delta);
 
@@ -93,6 +108,12 @@ int main(int a, char const *arguments[]) {
     eps2 += ( 2*mu2*clamp(1.-f[], 0., 1.)*D2 )*cube(Delta);
   }
 
+  if (wt == 0.) {
+    if (pid() == 0)
+      fprintf (stderr, "empty liquid volume in '%s'\n", nameOut);
+    return 3;
+  }
+
   sumU /= wt; sumX /= wt;
   sumV /= wt; sumY /= wt;
   sumW /= wt; sumZ /= wt;
@@ -102,8 +123,16 @@ int main(int a, char const *arguments[]) {
 
   se = (interface_area (f)-8*pi);
 
-  boundary((scalar *){f, u.x, u.y, u.z});
+  if (pid() != 0)
+    return 0;
 
+  FILE *fp = fopen (nameEnergy, "a");
+  if (!fp) {
+    perror (nameEnergy);
+    return 4;
+  }
   fprintf(fp, "%f %f %f %f %f %f %f %f %f %f %f %f\n", t, ke1, xcm, ucm, ycm, vcm, zcm, wcm, se, eps1, ke2, eps2);
-  fclose(fp);
+  if (fclose(fp) != 0)
+    return 5;
+  return 0;
 }
