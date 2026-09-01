@@ -8,7 +8,7 @@ Two independent pipelines:
 - **Rendering** (`getView3D_v3.c` + `render_frames_mpi.py`) - MPI restore,
   rendering and composition within each frame, with multiple frames rendered
   concurrently. The serial `v2` pathway remains available for comparison.
-- **Energy** (`getEnergy.c` + `run_energy.py` + `energy_budget.py`) - per-snapshot energy diagnostics and the assembled budget plot.
+- **Energy** (`getEnergy.c` + `run_energy.py` / `run_energy_mpi.py` + `energy_budget.py`) - per-snapshot energy diagnostics and the assembled budget plot.
 
 Both Basilisk tools read snapshots directly; the Python drivers only fan the
 work across snapshots and assemble the outputs.
@@ -23,7 +23,9 @@ postProcess/
 ├── render_frames_mpi.py - MPI renderer with parallel frame lanes
 ├── render_frames_mpi.sbatch - two-node Snellius MPI render sweep
 ├── getEnergy.c           - Basilisk: energy diagnostics for one snapshot
-├── run_energy.py         - driver: run getEnergy over every snapshot, assemble getEnergy.dat
+├── run_energy.py         - serial-restore driver across snapshots
+├── run_energy_mpi.py     - MPI restore with optional size-based snapshot lanes
+├── run_energy_mpi.sbatch - Snellius MPI energy sweep
 └── energy_budget.py - assemble + plot the energy budget from getEnergy.dat
 ```
 
@@ -62,6 +64,22 @@ cp /path/to/simulationCases/<CaseNo>/case.params .
 NPROC=32 python3 run_energy.py        # Oh read from case.params (or pass it: run_energy.py 0.05)
 python3 energy_budget.py getEnergy.dat energyBudget
 ```
+
+For dumps that no longer restore in one process, compile `getEnergy` with MPI
+and use `run_energy_mpi.py`. `--cpus` is the number of concurrent snapshot
+lanes, not the MPI rank count inside one restore. Existing complete part files
+are skipped, so a cancelled sweep resumes.
+
+```bash
+sbatch --nodes=4 --ntasks=96 --ntasks-per-node=24 \
+  --export=ALL,ROOT=<repository-root>,CASE_ID=<CaseNo>,ENERGY_WORKERS=4,ENERGY_ADAPTIVE=1 \
+  postProcess/run_energy_mpi.sbatch
+```
+
+`ENERGY_ADAPTIVE=1` sends snapshots smaller than 20 GiB through a one-node
+lane and keeps the two-node lane for larger dumps, packing both into the same
+allocation. Set `ENERGY_REQUIRE_COMPLETE=0` only when a few unrestorable
+dumps should not fail the job after `getEnergy.dat` has been written.
 
 `run_energy.py` runs `getEnergy` once per snapshot in parallel (each writing its
 own one-line file) and concatenates them in time order into `getEnergy.dat`:
@@ -163,11 +181,11 @@ field colouring, mesh overlay, and time label.
 
 ## HPC note
 
-Energy extraction remains serial per snapshot, so `run_energy.py` parallelises
-across snapshots with a process pool. The MPI renderer parallelises the
-restore and drawing of each frame, and can also run independent frame lanes
-when the allocation has enough complete MPI groups. On Snellius, run both
-drivers from a batch job rather than on a login node. The fluid properties
+The serial energy driver parallelises across snapshots with a process pool.
+The MPI energy driver parallelises the restore of each snapshot and can also
+run independent snapshot lanes, with optional size-based packing. The MPI
+renderer does the same for frames. On Snellius, run both drivers from a batch
+job rather than on a login node. The fluid properties
 baked into `getEnergy.c` must match
 `simulationCases/jumpingDrops_main.c` (`rho1=1`, `mu1=Oh`, `rho2=1e-3`,
 `mu2=1e-5`, `sigma=1`).

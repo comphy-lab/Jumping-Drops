@@ -21,6 +21,8 @@ set -euo pipefail
 CASE_DIR="${ROOT}/simulationCases/${CASE_ID}"
 POST_DIR=${POST_DIR:-"${ROOT}/postprocess/${CASE_ID}-mpi-energy"}
 ENERGY_WORKERS=${ENERGY_WORKERS:-1}
+ENERGY_ADAPTIVE=${ENERGY_ADAPTIVE:-0}
+ENERGY_REQUIRE_COMPLETE=${ENERGY_REQUIRE_COMPLETE:-1}
 MPI_RANKS_PER_FRAME=${MPI_RANKS_PER_FRAME:-48}
 MPI_NODES_PER_FRAME=${MPI_NODES_PER_FRAME:-2}
 MPI_TASKS_PER_NODE=${MPI_TASKS_PER_NODE:-24}
@@ -47,15 +49,28 @@ CC99='mpicc -std=c99 -D_GNU_SOURCE=1' \
 
 SNAPSHOTS=$(find -L intermediate -regextype posix-extended -maxdepth 1 \
   -type f -regex '.*/snapshot-[0-9]+(\.[0-9]+)?' | wc -l)
-echo "MPI_ENERGY_START|$(date -Is)|case=${CASE_ID}|snapshots=${SNAPSHOTS}|workers=${ENERGY_WORKERS}|ranks_per_frame=${MPI_RANKS_PER_FRAME}"
+echo "MPI_ENERGY_START|$(date -Is)|case=${CASE_ID}|snapshots=${SNAPSHOTS}|workers=${ENERGY_WORKERS}|adaptive=${ENERGY_ADAPTIVE}|ranks_per_frame=${MPI_RANKS_PER_FRAME}"
 
-export ENERGY_WORKERS MPI_RANKS_PER_FRAME MPI_NODES_PER_FRAME
+export ENERGY_WORKERS ENERGY_ADAPTIVE ENERGY_REQUIRE_COMPLETE
+export MPI_RANKS_PER_FRAME MPI_NODES_PER_FRAME
 export MPI_TASKS_PER_NODE MPI_MEMORY_PER_FRAME
+export ENERGY_SMALL_MAX_BYTES ENERGY_SMALL_NODES ENERGY_SMALL_RANKS
+export ENERGY_SMALL_TASKS_PER_NODE ENERGY_SMALL_MEMORY
+export ENERGY_LARGE_NODES ENERGY_LARGE_RANKS ENERGY_LARGE_TASKS_PER_NODE
+export ENERGY_LARGE_MEMORY
+set +e
 python3 run_energy_mpi.py --cpus "${ENERGY_WORKERS}"
+status=$?
+set -e
 
 test -s getEnergy.dat
 ROWS=$(grep -cve '^[[:space:]]*$' getEnergy.dat || true)
-test "${ROWS}" -eq "${SNAPSHOTS}"
+if [[ "${ENERGY_REQUIRE_COMPLETE}" == "1" ]]; then
+  test "${ROWS}" -eq "${SNAPSHOTS}"
+  test "${status}" -eq 0
+else
+  test "${ROWS}" -gt 0
+fi
 
 if python3 energy_budget.py getEnergy.dat energyBudget; then
   echo "MPI_ENERGY_BUDGET|$(date -Is)|case=${CASE_ID}|rows=${ROWS}"
